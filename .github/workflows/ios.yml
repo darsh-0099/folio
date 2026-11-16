@@ -1,0 +1,47 @@
+name: iOS device IPA and tests
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: folio-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  build:
+    runs-on: macos-15
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - name: Inspect Apple toolchain
+        run: |
+          xcodebuild -version
+          xcodebuild -showsdks
+          swift --version
+      - name: Install project generator
+        run: brew install xcodegen
+      - name: Build and verify unsigned arm64 IPA
+        run: scripts/build-ipa.sh
+      - name: Upload verified device package and generated project
+        uses: actions/upload-artifact@v4
+        with:
+          name: Folio-device-unsigned
+          path: |
+            build/Folio.ipa
+            build/Folio.ipa.sha256
+            Folio.xcodeproj
+      - name: Select installed iPhone simulator
+        run: |
+          UDID=$(xcrun simctl list devices available -j | python3 -c 'import json,sys; d=json.load(sys.stdin); print(next(x["udid"] for r,ds in d["devices"].items() if "iOS" in r for x in ds if x["name"].startswith("iPhone")))')
+          echo "SIMULATOR_ID=$UDID" >> "$GITHUB_ENV"
+      - name: Run unit and persistence tests
+        run: |
+          xcodebuild test -project Folio.xcodeproj -scheme Folio -destination "platform=iOS Simulator,id=$SIMULATOR_ID" -derivedDataPath build/tests -resultBundlePath build/Tests.xcresult CODE_SIGNING_ALLOWED=NO
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Folio-test-results
+          path: build/Tests.xcresult
