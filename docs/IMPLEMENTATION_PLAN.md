@@ -12,10 +12,9 @@
 6. Add PDFKit, statistics, settings and selected-passage speech. Implemented;
    runtime validation pending. AI provider integration explicitly deferred.
 7. Run syntax and packaging checks locally; run clean device build and XCTest on GitHub.
-   Local checks passed; GitHub upload blocked by connection permissions.
+   Local checks passed; source uploaded and GitHub Actions device build started.
 8. Verify device artifact, install with SideStore and execute physical-device checklist.
    Pending successful CI and access to an iPhone; never substitute simulator packaging.
 
-Current external blocker: GitHub API returns 403 Resource not accessible by integration
-for writes to darsh-0099/folio. Repository is visible with read access. No source upload,
-workflow run or device artifact is claimed until access is corrected.
+Repository access was corrected. Source and the macOS build workflow are on main.
+The first Actions build is being monitored; device artifacts are not claimed until verified.
