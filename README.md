@@ -34,8 +34,9 @@ scripts/build-ipa.sh
 # Output: build/Folio.ipa
 ```
 
-`project.yml` is the reproducible project source. `xcodegen generate` recreates the Xcode
-project with an app and XCTest target. Dependency: Readium Swift Toolkit **3.5.0**
+`project.yml` is the reproducible project source. The generated `Folio.xcodeproj`
+and dependency lockfile are included. `xcodegen generate` recreates the Xcode
+project with the app, XCTest and UI test targets. Dependency: Readium Swift Toolkit **3.5.0**
 (BSD-3-Clause), products Shared, Streamer, Navigator and AdapterGCDWebServer; transitive
 SPM dependencies are resolved by Xcode. No LCP binaries or private entitlements.
 The workflow uploads the generated project including its resolved package versions.
@@ -80,6 +81,11 @@ unsigned until SideStore signs it. Never install a simulator `.app` or ZIP of so
 malformed responses, duplicate records, streak boundaries, disk-backed SwiftData reopen,
 locator and annotation persistence, offline file existence/deletion and corrupt-download
 rejection. Run them through Actions or `xcodebuild test` on a Mac.
+
+`FolioUITests` covers tab navigation and reader settings. Push builds also run a live
+Gutenberg search/download/read/bookmark/relaunch/delete integration test. Public catalog
+availability is required. Manual workflow runs can disable this live test with the
+`live_reading_flow` input.
 
 `python3 -m unittest discover -s scripts -p 'test_*.py'` exercises package rejection and
 project checks on Linux. This is not a substitute for Swift compilation or device tests.
