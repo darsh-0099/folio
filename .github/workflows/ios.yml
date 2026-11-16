@@ -41,16 +41,19 @@ jobs:
         run: |
           UDID=$(xcrun simctl list devices available -j | python3 -c 'import json,sys; d=json.load(sys.stdin); print(next(x["udid"] for r,ds in d["devices"].items() if "iOS" in r for x in ds if x["name"].startswith("iPhone")))')
           echo "SIMULATOR_ID=$UDID" >> "$GITHUB_ENV"
-      - name: Run unit and persistence tests
+      - name: Run unit, persistence and UI reading tests
+        timeout-minutes: 18
         run: |
-          xcodebuild test -project Folio.xcodeproj -scheme Folio -destination "platform=iOS Simulator,id=$SIMULATOR_ID" -derivedDataPath build/tests -resultBundlePath build/Tests.xcresult -skip-testing:FolioUITests/FolioUITests/testLiveGutenbergDownloadReaderAndRelaunch CODE_SIGNING_ALLOWED=NO
-      - name: Run live reading UI flow
-        if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.live_reading_flow)
-        run: |
-          xcodebuild test -project Folio.xcodeproj -scheme Folio -destination "platform=iOS Simulator,id=$SIMULATOR_ID" -derivedDataPath build/tests -resultBundlePath build/LiveReading.xcresult -only-testing:FolioUITests/FolioUITests/testLiveGutenbergDownloadReaderAndRelaunch CODE_SIGNING_ALLOWED=NO
+          FOLIO_TEST_SELECTION=()
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ inputs.live_reading_flow }}" = "false" ]; then
+            FOLIO_TEST_SELECTION+=("-skip-testing:FolioUITests/FolioUITests/testLiveGutenbergDownloadReaderAndRelaunch")
+          fi
+          xcodebuild test -project Folio.xcodeproj -scheme Folio -destination "platform=iOS Simulator,id=$SIMULATOR_ID" -derivedDataPath build/tests -resultBundlePath build/Tests.xcresult -test-timeouts-enabled YES -default-test-execution-time-allowance 480 -maximum-test-execution-time-allowance 600 "${FOLIO_TEST_SELECTION[@]}" CODE_SIGNING_ALLOWED=NO
       - name: Upload test results
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: Folio-test-results
-          path: build/Tests.xcresult
+          path: |
+            build/Tests.xcresult
+            build/LiveReading.xcresult

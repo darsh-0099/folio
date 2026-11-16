@@ -28,3 +28,10 @@ build succeeded. IPA arm64, identifier, minimum OS, platform, assets and depende
 checks passed; signing state confirmed unsigned. Test-target compilation found a
 Readium Locator test using String instead of RelativeURL; corrected in the next commit.
 The IPA from this run predates the background-download startup/retry fixes.
+
+Run 43818911060: revised device build and package checks passed. All 10 unit tests
+and the five-tab/settings UI test passed. The live UI test reached the real book
+details and tapped Download but timed out before Read appeared. Download validation
+and simulator transfer diagnostics are being investigated; do not claim the end-to-end
+reader flow has passed yet. Simulator transfers now use a foreground session with the
+same delegate/validation/storage code; physical devices retain background URLSession.

@@ -38,8 +38,14 @@ final class DownloadDelegate: NSObject, URLSessionDownloadDelegate, @unchecked S
     private var finishedEvents = false
     var backgroundCompletion: (() -> Void)? { didSet { completeBackgroundIfReady() } }
     lazy var session: URLSession = {
+        #if targetEnvironment(simulator)
+        // The simulator's background-transfer daemon is not a device lifecycle
+        // environment. Exercise the same delegate/storage pipeline in foreground.
+        let config = URLSessionConfiguration.default
+        #else
         let config = URLSessionConfiguration.background(withIdentifier: "com.folio.reader.downloads")
         config.sessionSendsLaunchEvents = true; config.isDiscretionary = false
+        #endif
         return URLSession(configuration: config, delegate: delegate, delegateQueue: nil)
     }()
     func configure(_ context: ModelContext) {
@@ -68,8 +74,13 @@ final class DownloadDelegate: NSObject, URLSessionDownloadDelegate, @unchecked S
         guard let context else { throw FolioError.message("Library is not ready.") }
         guard book.files.contains(file), file.url.scheme == "https", !file.rights.isEmpty else { throw FolioError.message("No authorized download is available.") }
         try LibraryFiles.prepare()
-        let capacity = try LibraryFiles.directory.resourceValues(forKeys: [.volumeAvailableCapacityForImportantUsageKey]).volumeAvailableCapacityForImportantUsage ?? 0
-        guard capacity > max((file.expectedBytes ?? 50_000_000) * 2, 100_000_000) else { throw FolioError.message("Free some device storage before downloading.") }
+        let values = try LibraryFiles.directory.resourceValues(forKeys: [.volumeAvailableCapacityForImportantUsageKey, .volumeAvailableCapacityKey])
+        let capacity = max(values.volumeAvailableCapacityForImportantUsage ?? 0, Int64(values.volumeAvailableCapacity ?? 0))
+        let expected = file.expectedBytes ?? 50_000_000
+        guard expected >= 0, expected < Int64.max / 2 else { throw FolioError.message("The source reports an invalid file size.") }
+        // An unavailable capacity estimate is not evidence that storage is full.
+        // Filesystem write errors still report actual disk-full failures.
+        if capacity > 0, capacity < max(expected * 2, 100_000_000) { throw FolioError.message("Free some device storage before downloading.") }
         let record = try LibraryRepository.save(book, context: context)
         guard record.downloadState != "downloading" else { return }
         let ticket = DownloadTicket(bookID: book.id, file: file)

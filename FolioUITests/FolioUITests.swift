@@ -27,7 +27,12 @@ final class FolioUITests: XCTestCase {
         for _ in 0..<5 where !download.isHittable { app.swipeUp() }
         if download.exists { download.tap() }
         let read = app.buttons["reader.open"]
-        XCTAssertTrue(read.waitForExistence(timeout: 180))
+        let readable = read.waitForExistence(timeout: 180)
+        if !readable {
+            print("FOLIO DOWNLOAD DIAGNOSTIC: " + app.debugDescription)
+            let capture = XCTAttachment(screenshot: app.screenshot()); capture.lifetime = .keepAlways; add(capture)
+        }
+        XCTAssertTrue(readable, "Downloaded edition did not become readable; see diagnostic hierarchy")
         for _ in 0..<5 where !read.isHittable { app.swipeDown() }
         read.tap()
         XCTAssertTrue(app.webViews.firstMatch.waitForExistence(timeout: 90))
