@@ -1,20 +1,17 @@
-# Implementation and validation plan
+# Implementation and validation plan — final status
 
-1. Inspect host/toolchain and establish device-build route. Done: Linux only; use macOS CI.
-2. Build catalog models and official API clients; verify real responses. Implemented;
-   live Gutendex, Open Library and Gutenberg download checks passed.
-3. Connect discover, filtered search, details, edition/source attribution and rights gates.
-   Implemented; iOS execution pending.
-4. Add SwiftData library, persistent downloads, validation, cancellation and offline files.
-   Implemented; XCTest and device recovery checks pending.
-5. Integrate pinned Readium, stable locators, appearance, TOC, search and annotations.
-   Implemented against toolkit source; Apple SDK compilation and runtime pending.
-6. Add PDFKit, statistics, settings and selected-passage speech. Implemented;
-   runtime validation pending. AI provider integration explicitly deferred.
-7. Run syntax and packaging checks locally; run clean device build and XCTest on GitHub.
-   Local checks passed; source uploaded and GitHub Actions device build started.
-8. Verify device artifact, install with SideStore and execute physical-device checklist.
-   Pending successful CI and access to an iPhone; never substitute simulator packaging.
-
-Repository access was corrected. Source and the macOS build workflow are on main.
-The first Actions build is being monitored; device artifacts are not claimed until verified.
+1. Environment inspection: completed. The workspace is Linux with no Apple SDK;
+   GitHub Actions macOS supplies the actual Xcode device and simulator toolchain.
+2. Catalog models, official API clients, live-response verification: completed.
+3. Discover, search, detail screens, edition grouping and rights gates: implemented.
+4. SwiftData library, downloads, validation, cancellation, offline files: implemented.
+5. Readium EPUB navigation, locators, appearance, search and annotations: implemented.
+6. PDFKit, statistics, settings and selected-passage speech: implemented.
+   AI provider integration is explicitly deferred.
+7. Clean device build, packaging checks, 10 unit/persistence tests and 2 UI tests:
+   passed in Actions run 43823195236. The live UI flow includes download, reading,
+   relaunch, persisted bookmark and deletion.
+8. Generated Xcode project, dependency lockfile, verified unsigned IPA, source archive,
+   README and test results: delivered. Source is maintained in darsh-0099/folio.
+9. Physical-iPhone/SideStore installation, airplane mode and the broader manual QA
+   checklist: pending hardware access. These cannot be inferred from simulator tests.

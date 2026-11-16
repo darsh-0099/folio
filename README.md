@@ -4,11 +4,16 @@ Native SwiftUI eBook reader for iPhone, iOS 17+. Bundle ID: `com.folio.reader`.
 
 ## Status
 
-The first clean device build succeeded on GitHub (Xcode 16.4, Swift 6.1.2).
-Implementation is under active verification. This repository contains real catalog clients,
-SwiftData persistence, background downloads, Readium EPUB integration and PDFKit viewing.
-Do not treat the app as production verified until the Actions device build, tests and
-physical-device acceptance checklist pass. An unsigned IPA is uploaded when the device build step succeeds; a source archive is not an installable app.
+**Device build and all 12 iOS tests passed** in
+[Actions run 43823195236](https://github.com/darsh-0099/folio/actions/runs/43823195236).
+The verified unsigned arm64 IPA is in its **Folio-device-unsigned** artifact, with the
+generated Xcode project and checksum. Bundle ID `com.folio.reader`, iPhone only, iOS 17+.
+
+The live simulator test searched for a real Gutenberg book, downloaded and opened it,
+saved a bookmark, relaunched, reopened the local book, checked annotation persistence,
+and deleted its download. Physical-iPhone installation, airplane mode and background
+transfers remain manual checks. See [docs/STATUS.md](docs/STATUS.md) for exact evidence
+and limits; the app is not claimed to have completed production/device QA.
 
 ## Build entirely on GitHub
 
@@ -105,8 +110,10 @@ See [docs/ACCEPTANCE.md](docs/ACCEPTANCE.md) for the physical-device flow and
   reconnect them. They restart rather than guarantee byte-range resume.
 - EPUB speech reads selected text, not an automatic whole-book narration session.
 - Plain-text reading has no position/statistics tracking; PDF has no EPUB annotations.
-- Local iOS compilation is impossible in the initial Linux workspace. GitHub Actions
-  and an iPhone must establish build and end-to-end correctness.
+- The Linux workspace cannot compile iOS. GitHub Actions established device-build and
+  simulator-flow correctness; an iPhone must establish physical-device behavior.
+- Simulator transfers use a foreground session; real devices use background URLSession.
+  Background behavior has not been validated on an iPhone.
 
 ## Privacy and rights
 

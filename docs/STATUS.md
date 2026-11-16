@@ -1,43 +1,51 @@
-# Verification record
+# Verified build and test results
 
-Initial environment: Linux x86_64. No Swift compiler, Xcode, Apple SDK, simulator,
-physical iPhone connection or local Apple signing identity. A local device build and
-IPA cannot be produced here. GitHub Actions macOS is configured as the build environment.
+Successful GitHub Actions run: https://github.com/darsh-0099/folio/actions/runs/43823195236
 
-Readium integration inspected against actual 3.5.0 source, commit
-`8bd799d00a835248a6f5987f70c23c4c30280e48`, including PublicationOpener,
-AssetRetriever, EPUBNavigatorViewController, EPUBPreferences, Locator, decorations,
-editing actions and SearchIterator. API inspection is not compilation verification.
+Tested application commit: `41c634da65f03ec5dca9c9b5bfa8942f0dfff761`.
+Subsequent documentation-only commits do not change this executable.
 
-Swift tests and physical-device acceptance are pending the build workflow and device.
-See the latest Actions run for actual compiler and XCTest results.
+- Clean iPhoneOS Release device build: **passed**.
+- Toolchain: **Xcode 16.4, Swift 6.1.2**, minimum deployment **iOS 17.0**.
+- Executable: **arm64**, Mach-O platform **iOS (2)**, minimum OS **17.0**.
+- App: `com.folio.reader`, iPhone device family `[1]`.
+- Signing: **unsigned**, for SideStore to re-sign. No provisioning profile is embedded.
+- Package: `Payload/Folio.app/`, app icons, SwiftPM Readium resources and dependency
+  linkage checked. ZIP CRC checks and independent Mach-O verification passed.
+- **10 unit/persistence tests passed**, zero failures.
+- **2 simulator UI tests passed**, zero failures.
+- **4 local Python packaging/configuration tests passed**, zero failures.
+- All **15 Swift source files** passed local syntax parsing; compilation was separately
+  verified by the actual Apple SDK build above.
 
-Local checks performed:
+IPA SHA-256:
+`c14a058541c6cf9519387d018d64b2ebc1d88cc0b9458f2023541b1208e73280`
 
-- Four Python packaging/configuration tests passed, including rejecting simulator-only
-  and missing-executable packages. No placeholder IPA was generated.
-- All 14 Swift files passed tree-sitter Swift syntax parsing (not SDK type checking).
-- Live Gutendex #1342 response: copyright false, actual EPUB-with-images URL present.
-- Live Open Library title search returned two documents with requested metadata fields.
-- Actual Gutenberg #1342 EPUB downloaded outside the repository for inspection: correct
-  mimetype, META-INF/container.xml, 182 ZIP entries, no CRC errors. It was not rendered
-  by Readium here because no iOS runtime is available.
+Device artifact: https://github.com/darsh-0099/folio/actions/runs/43823195236/artifacts/14205537492
 
-GitHub Actions run 43817863061: Xcode 16.4 / Swift 6.1.2. Clean iphoneos Release
-build succeeded. IPA arm64, identifier, minimum OS, platform, assets and dependencies
-checks passed; signing state confirmed unsigned. Test-target compilation found a
-Readium Locator test using String instead of RelativeURL; corrected in the next commit.
-The IPA from this run predates the background-download startup/retry fixes.
+## What the UI test actually established
 
-Run 43818911060: revised device build and package checks passed. All 10 unit tests
-and the five-tab/settings UI test passed. The live UI test reached the real book
-details and tapped Download but timed out before Read appeared. Download validation
-and simulator transfer diagnostics are being investigated; do not claim the end-to-end
-reader flow has passed yet. Simulator transfers now use a foreground session with the
-same delegate/validation/storage code; physical devices retain background URLSession.
+The test used real public catalogs and the actual Project Gutenberg #1342 EPUB.
+It searched for Pride and Prejudice, opened details, downloaded the EPUB, opened
+Readium, saved a bookmark, navigated, terminated the app, relaunched, opened the local
+book, verified a nonempty persisted annotation list, closed the reader, deleted the
+file and verified the Read action disappeared. A separate UI test opened all five tabs
+and changed the continuous-scrolling preference. Persistence tests reopened an on-disk
+SwiftData store and asserted exact saved progress/locator and note values.
 
-Run 43821681222: all 10 unit tests and tab/settings UI test passed. The live reading
-flow successfully searched, downloaded, opened Readium, saved a bookmark, relaunched,
-reopened the book and verified its annotation list was nonempty. Its final Close query
-failed to locate the system bar item; explicit reader-close accessibility identifiers
-and explicit UIKit annotation-sheet dismissal were added for the next run.
+The simulator uses foreground URLSession transfers through the same delegate,
+validation and storage pipeline. Physical iPhones use background URLSession. Simulator
+success does not establish physical-device background transfer or SideStore signing.
+
+## Remaining verification and feature limits
+
+No physical iPhone or SideStore signing session was available. The airplane-mode flow,
+real-device background transfers, interruption recovery, VoiceOver audit, PDF reading,
+text selection/highlight rendering, speech playback, TOC and visual appearance changes
+need the manual checks in ACCEPTANCE.md. No claim of a complete device QA pass is made.
+
+AI provider integration and dedicated author biographies/edition comparison are deferred.
+Speech reads selected EPUB text, not automatic whole-book narration. PDF has page/zoom/
+search/resume but no EPUB annotations. Plain text has no reading-position/statistics
+tracking. Interrupted transfers restart when necessary rather than guaranteeing byte
+resume. See README.md for the full feature scope and installation instructions.
