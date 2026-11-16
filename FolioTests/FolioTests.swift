@@ -59,7 +59,7 @@ final class CatalogTests: XCTestCase {
         let schema = Schema([LibraryBook.self, Annotation.self, ReadingDay.self])
         let config = ModelConfiguration(schema: schema, url: directory.appendingPathComponent("test.store"))
         let book = Book(id: "test", title: "Offline book", authors: ["Author"], source: URL(string: "https://example.com")!, origin: "test")
-        let locator = Locator(href: "chapter.xhtml", mediaType: .xhtml, locations: .init(progression: 0.5, totalProgression: 0.25))
+        let locator = Locator(href: try XCTUnwrap(RelativeURL(path: "chapter.xhtml")), mediaType: .xhtml, locations: .init(progression: 0.5, totalProgression: 0.25))
         do {
             let container = try ModelContainer(for: schema, configurations: [config]); let context = ModelContext(container)
             let record = try LibraryRepository.save(book, context: context)

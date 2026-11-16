@@ -2,13 +2,13 @@ import Foundation
 import SwiftData
 import UIKit
 
-struct DownloadTicket: Codable { var bookID: String; var file: BookFile }
+struct DownloadTicket: Codable { var bookID: String; var file: BookFile; var token: String = UUID().uuidString }
 // URLSession invokes these methods on a serial delegate queue. Move temporary files
 // synchronously: their lifetime ends when didFinishDownloadingTo returns.
 final class DownloadDelegate: NSObject, URLSessionDownloadDelegate, @unchecked Sendable {
     func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didWriteData bytesWritten: Int64, totalBytesWritten: Int64, totalBytesExpectedToWrite: Int64) {
         guard let description = downloadTask.taskDescription, let ticket = description.data(using: .utf8).flatMap({ try? JSONDecoder().decode(DownloadTicket.self, from: $0) }) else { return }
-        Task { @MainActor in DownloadManager.shared.progress[ticket.bookID] = totalBytesExpectedToWrite > 0 ? Double(totalBytesWritten) / Double(totalBytesExpectedToWrite) : 0 }
+        Task { @MainActor in DownloadManager.shared.reportProgress(ticket, value: totalBytesExpectedToWrite > 0 ? Double(totalBytesWritten) / Double(totalBytesExpectedToWrite) : 0) }
     }
     func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didFinishDownloadingTo location: URL) {
         guard let text = downloadTask.taskDescription, let data = text.data(using: .utf8), let ticket = try? JSONDecoder().decode(DownloadTicket.self, from: data) else { return }
@@ -18,11 +18,11 @@ final class DownloadDelegate: NSObject, URLSessionDownloadDelegate, @unchecked S
             let incoming = LibraryFiles.directory.appendingPathComponent("incoming-\(UUID().uuidString).\(ticket.file.format)")
             try FileManager.default.moveItem(at: location, to: incoming)
             Task { @MainActor in await DownloadManager.shared.finish(ticket, incoming: incoming) }
-        } catch { Task { @MainActor in DownloadManager.shared.failed(ticket.bookID, error: error) } }
+        } catch { Task { @MainActor in DownloadManager.shared.failed(ticket, error: error) } }
     }
     func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
         guard let error, let text = task.taskDescription, let data = text.data(using: .utf8), let ticket = try? JSONDecoder().decode(DownloadTicket.self, from: data) else { return }
-        Task { @MainActor in DownloadManager.shared.failed(ticket.bookID, error: error) }
+        Task { @MainActor in DownloadManager.shared.failed(ticket, error: error) }
     }
     func urlSessionDidFinishEvents(forBackgroundURLSession session: URLSession) {
         Task { @MainActor in DownloadManager.shared.eventsFinished() }
@@ -36,7 +36,7 @@ final class DownloadDelegate: NSObject, URLSessionDownloadDelegate, @unchecked S
     private let delegate = DownloadDelegate()
     private var pendingValidations = 0
     private var finishedEvents = false
-    var backgroundCompletion: (() -> Void)?
+    var backgroundCompletion: (() -> Void)? { didSet { completeBackgroundIfReady() } }
     lazy var session: URLSession = {
         let config = URLSessionConfiguration.background(withIdentifier: "com.folio.reader.downloads")
         config.sessionSendsLaunchEvents = true; config.isDiscretionary = false
@@ -77,13 +77,15 @@ final class DownloadDelegate: NSObject, URLSessionDownloadDelegate, @unchecked S
         request.setValue("Folio/1.0 (com.folio.reader)", forHTTPHeaderField: "User-Agent")
         let task = session.downloadTask(with: request)
         task.taskDescription = String(data: try JSONEncoder().encode(ticket), encoding: .utf8)
-        record.downloadState = "downloading"; record.downloadError = nil; try context.save()
+        record.downloadState = "downloading"; record.downloadError = nil; record.downloadToken = ticket.token; try context.save()
         progress[book.id] = 0; task.resume()
     }
     func cancel(_ id: String) {
+        guard let record = record(id), let token = record.downloadToken else { return }
+        record.downloadState = "cancelled"; progress[id] = nil; try? context?.save()
         Task {
             for task in await session.allTasks {
-                if let text = task.taskDescription, let data = text.data(using: .utf8), (try? JSONDecoder().decode(DownloadTicket.self, from: data).bookID) == id { task.cancel() }
+                if let text = task.taskDescription, let data = text.data(using: .utf8), (try? JSONDecoder().decode(DownloadTicket.self, from: data).token) == token { task.cancel() }
             }
         }
     }
@@ -95,7 +97,7 @@ final class DownloadDelegate: NSObject, URLSessionDownloadDelegate, @unchecked S
         defer { pendingValidations -= 1; completeBackgroundIfReady() }
         do {
             try await ReaderEngine.shared.validate(incoming, file: ticket.file)
-            guard let record = record(ticket.bookID), record.downloadState == "downloading" else { try? FileManager.default.removeItem(at: incoming); return }
+            guard let record = record(ticket.bookID), record.downloadToken == ticket.token, record.downloadState != "cancelled" else { try? FileManager.default.removeItem(at: incoming); return }
             let name = "\(UUID().uuidString).\(ticket.file.format)"
             let destination = LibraryFiles.directory.appendingPathComponent(name)
             try FileManager.default.moveItem(at: incoming, to: destination)
@@ -106,16 +108,26 @@ final class DownloadDelegate: NSObject, URLSessionDownloadDelegate, @unchecked S
             progress[ticket.bookID] = nil
         } catch {
             try? FileManager.default.removeItem(at: incoming)
-            failed(ticket.bookID, error: error)
+            failed(ticket, error: error)
         }
     }
-    func failed(_ id: String, error: Error) {
-        record(id)?.downloadState = "failed"; record(id)?.downloadError = error.localizedDescription
-        progress[id] = nil; message = error.localizedDescription; try? context?.save()
+    func reportProgress(_ ticket: DownloadTicket, value: Double) {
+        guard let record = record(ticket.bookID), record.downloadToken == ticket.token, record.downloadState == "downloading" else { return }
+        progress[ticket.bookID] = value
+    }
+    func failed(_ ticket: DownloadTicket, error: Error) {
+        guard let record = record(ticket.bookID), record.downloadToken == ticket.token else { return }
+        let cancelled = (error as NSError).code == NSURLErrorCancelled
+        record.downloadState = cancelled ? "cancelled" : "failed"
+        record.downloadError = cancelled ? "Download cancelled. Tap Download to retry." : error.localizedDescription
+        progress[ticket.bookID] = nil
+        if !cancelled { message = error.localizedDescription }; try? context?.save()
     }
     func eventsFinished() { finishedEvents = true; completeBackgroundIfReady() }
     private func completeBackgroundIfReady() {
-        if finishedEvents && pendingValidations == 0 { finishedEvents = false; backgroundCompletion?(); backgroundCompletion = nil }
+        if finishedEvents && pendingValidations == 0, let completion = backgroundCompletion {
+            finishedEvents = false; backgroundCompletion = nil; completion()
+        }
     }
 }
 final class AppDelegate: NSObject, UIApplicationDelegate {

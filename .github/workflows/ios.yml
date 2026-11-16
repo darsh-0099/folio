@@ -4,6 +4,11 @@ on:
     branches: [main]
   pull_request:
   workflow_dispatch:
+    inputs:
+      live_reading_flow:
+        description: Run live Gutenberg download and relaunch UI test (requires public services)
+        type: boolean
+        default: true
 permissions:
   contents: read
 concurrency:
@@ -38,7 +43,11 @@ jobs:
           echo "SIMULATOR_ID=$UDID" >> "$GITHUB_ENV"
       - name: Run unit and persistence tests
         run: |
-          xcodebuild test -project Folio.xcodeproj -scheme Folio -destination "platform=iOS Simulator,id=$SIMULATOR_ID" -derivedDataPath build/tests -resultBundlePath build/Tests.xcresult CODE_SIGNING_ALLOWED=NO
+          xcodebuild test -project Folio.xcodeproj -scheme Folio -destination "platform=iOS Simulator,id=$SIMULATOR_ID" -derivedDataPath build/tests -resultBundlePath build/Tests.xcresult -skip-testing:FolioUITests/FolioUITests/testLiveGutenbergDownloadReaderAndRelaunch CODE_SIGNING_ALLOWED=NO
+      - name: Run live reading UI flow
+        if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.live_reading_flow)
+        run: |
+          xcodebuild test -project Folio.xcodeproj -scheme Folio -destination "platform=iOS Simulator,id=$SIMULATOR_ID" -derivedDataPath build/tests -resultBundlePath build/LiveReading.xcresult -only-testing:FolioUITests/FolioUITests/testLiveGutenbergDownloadReaderAndRelaunch CODE_SIGNING_ALLOWED=NO
       - name: Upload test results
         if: always()
         uses: actions/upload-artifact@v4

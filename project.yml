@@ -20,6 +20,7 @@ targets:
     sources: [Folio]
     settings:
       base:
+        TARGETED_DEVICE_FAMILY: '1'
         PRODUCT_BUNDLE_IDENTIFIER: com.folio.reader
         GENERATE_INFOPLIST_FILE: YES
         INFOPLIST_KEY_CFBundleDisplayName: Folio
@@ -48,10 +49,19 @@ targets:
         GENERATE_INFOPLIST_FILE: YES
     dependencies:
       - target: Folio
+  FolioUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources: [FolioUITests]
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+    dependencies:
+      - target: Folio
 schemes:
   Folio:
     build:
       targets:
         Folio: all
     test:
-      targets: [FolioTests]
+      targets: [FolioTests, FolioUITests]

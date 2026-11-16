@@ -9,6 +9,11 @@ exe = app / info['CFBundleExecutable']
 assert 'arm64' in subprocess.check_output(['lipo', '-archs', str(exe)], text=True)
 assert (app / 'Assets.car').is_file(), 'Missing compiled assets'
 assert info.get('CFBundleIcons'), 'Missing app icons'
+for target in ('ReadiumShared', 'ReadiumStreamer', 'ReadiumNavigator'):
+    bundles = [p for p in app.glob('*.bundle') if target in p.name]
+    assert bundles, f'Missing SwiftPM resources for {target}'
+    if target == 'ReadiumNavigator':
+        assert any(list(p.rglob('*.js')) for p in bundles), 'Missing EPUB renderer JavaScript'
 for binary in (app / 'Frameworks').glob('*.framework'):
     assert 'arm64' in subprocess.check_output(['lipo', '-archs', str(binary / binary.stem)], text=True)
 load = subprocess.check_output(['otool', '-L', str(exe)], text=True)

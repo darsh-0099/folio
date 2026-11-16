@@ -53,7 +53,7 @@ struct CatalogView: View {
                         Button("Retry") { Task { await model.load() } }
                     }
                     LazyVGrid(columns: [GridItem(.adaptive(minimum: 140), spacing: 20)], spacing: 24) {
-                        ForEach(model.books) { book in NavigationLink(value: book) { BookCard(book: book) }.buttonStyle(.plain) }
+                        ForEach(model.books) { book in NavigationLink(value: book) { BookCard(book: book) }.buttonStyle(.plain).accessibilityIdentifier("book.\(book.id)") }
                     }
                     if model.loading { ProgressView().frame(maxWidth: .infinity) }
                     else if !model.books.isEmpty { Button("Load more") { Task { await model.load(more: true) } }.frame(maxWidth: .infinity) }

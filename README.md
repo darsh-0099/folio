@@ -4,11 +4,11 @@ Native SwiftUI eBook reader for iPhone, iOS 17+. Bundle ID: `com.folio.reader`.
 
 ## Status
 
+The first clean device build succeeded on GitHub (Xcode 16.4, Swift 6.1.2).
 Implementation is under active verification. This repository contains real catalog clients,
 SwiftData persistence, background downloads, Readium EPUB integration and PDFKit viewing.
 Do not treat the app as production verified until the Actions device build, tests and
-physical-device acceptance checklist pass. An IPA is available only when the device
-build workflow succeeds; a source archive is not an installable app.
+physical-device acceptance checklist pass. An unsigned IPA is uploaded when the device build step succeeds; a source archive is not an installable app.
 
 ## Build entirely on GitHub
 

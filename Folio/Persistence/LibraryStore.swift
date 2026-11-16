@@ -8,6 +8,7 @@ import SwiftData
     var relativePath: String?
     var downloadState: String = "saved"
     var downloadError: String?
+    var downloadToken: String?
     var locator: String?
     var pdfPage: Int = 0
     var progress: Double = 0

@@ -22,3 +22,9 @@ Local checks performed:
 - Actual Gutenberg #1342 EPUB downloaded outside the repository for inspection: correct
   mimetype, META-INF/container.xml, 182 ZIP entries, no CRC errors. It was not rendered
   by Readium here because no iOS runtime is available.
+
+GitHub Actions run 43817863061: Xcode 16.4 / Swift 6.1.2. Clean iphoneos Release
+build succeeded. IPA arm64, identifier, minimum OS, platform, assets and dependencies
+checks passed; signing state confirmed unsigned. Test-target compilation found a
+Readium Locator test using String instead of RelativeURL; corrected in the next commit.
+The IPA from this run predates the background-download startup/retry fixes.

@@ -1,14 +1,24 @@
 import SwiftUI
 import SwiftData
 
-@main struct FolioApp: App {
+@main @MainActor struct FolioApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) var delegate
     @AppStorage("appAppearance") var appearance = "system"
+    private let storage: Result<ModelContainer, Error>
+    init() {
+        storage = Result { try ModelContainer(for: LibraryBook.self, Annotation.self, ReadingDay.self) }
+        if case .success(let container) = storage { DownloadManager.shared.configure(container.mainContext) }
+    }
     var body: some Scene {
         WindowGroup {
-            RootView().tint(Color(red: 0.19, green: 0.38, blue: 0.34))
-                .preferredColorScheme(appearance == "system" ? nil : (appearance == "dark" ? .dark : .light))
-        }.modelContainer(for: [LibraryBook.self, Annotation.self, ReadingDay.self])
+            switch storage {
+            case .success(let container):
+                RootView().modelContainer(container).tint(Color(red: 0.19, green: 0.38, blue: 0.34))
+                    .preferredColorScheme(appearance == "system" ? nil : (appearance == "dark" ? .dark : .light))
+            case .failure(let error):
+                ContentUnavailableView("Library unavailable", systemImage: "externaldrive.badge.exclamationmark", description: Text("Folio could not open its library: \(error.localizedDescription). Free storage if needed and relaunch the app."))
+            }
+        }
     }
 }
 struct RootView: View {

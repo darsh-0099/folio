@@ -22,7 +22,7 @@ struct LibraryView: View {
                                     ProgressView(value: record.progress)
                                 }
                             }
-                        }.swipeActions(edge: .leading) { if record.isDownloaded { Button("Read") { reader = record }.tint(.accentColor) } }
+                        }.accessibilityIdentifier("library.\(book.id)").swipeActions(edge: .leading) { if record.isDownloaded { Button("Read") { reader = record }.tint(.accentColor) } }
                     }
                 }
             }.navigationTitle("Library").fullScreenCover(item: $reader) { ReaderDestination(record: $0) }

@@ -18,7 +18,7 @@ struct BookDetailView: View {
                 Text(book.author.isEmpty ? "Unknown author" : book.author).font(.title3).foregroundStyle(.secondary)
                 Text(book.availability).font(.callout).foregroundStyle(Color.accentColor)
                 if let record, record.isDownloaded {
-                    Button(record.locator != nil || record.pdfPage > 0 ? "Continue Reading" : "Read") { reader = record }.buttonStyle(.borderedProminent).controlSize(.large)
+                    Button(record.locator != nil || record.pdfPage > 0 ? "Continue Reading" : "Read") { reader = record }.buttonStyle(.borderedProminent).controlSize(.large).accessibilityIdentifier("reader.open")
                     ProgressView(value: record.progress) { Text("\(Int(record.progress * 100))% read") }
                 }
                 if record?.downloadState == "downloading" {
@@ -27,7 +27,7 @@ struct BookDetailView: View {
                 } else if record?.isDownloaded != true {
                     ForEach(book.files) { file in
                         VStack(alignment: .leading) {
-                            Button("Download \(file.format.uppercased())") { perform { try downloads.start(file, book: book) } }.buttonStyle(.borderedProminent)
+                            Button("Download \(file.format.uppercased())") { perform { try downloads.start(file, book: book) } }.buttonStyle(.borderedProminent).accessibilityIdentifier("download.\(file.format)")
                             Text(file.rights).font(.caption).foregroundStyle(.secondary)
                         }
                     }
