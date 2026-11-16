@@ -22,7 +22,9 @@ struct PDFReader: UIViewControllerRepresentable {
         } else {
             let label = UILabel(frame: view.bounds); label.text = "The PDF is missing, locked or corrupt."; label.textAlignment = .center; view.addSubview(label)
         }
-        navigationItem.leftBarButtonItem = UIBarButtonItem(systemItem: .close, primaryAction: UIAction { [weak self] _ in self?.dismiss(animated: true) })
+        let close = UIBarButtonItem(systemItem: .close, primaryAction: UIAction { [weak self] _ in self?.dismiss(animated: true) })
+        close.accessibilityIdentifier = "reader.close"; close.accessibilityLabel = "Close book"
+        navigationItem.leftBarButtonItem = close
         navigationItem.rightBarButtonItems = [UIBarButtonItem(title: "Search", style: .plain, target: self, action: #selector(search)), UIBarButtonItem(title: "Page", style: .plain, target: self, action: #selector(pagePrompt))]
         NotificationCenter.default.addObserver(self, selector: #selector(pageChanged), name: .PDFViewPageChanged, object: pdfView)
         clock = ReadingClock(context: context); clock?.start()

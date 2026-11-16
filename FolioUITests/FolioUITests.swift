@@ -52,7 +52,8 @@ final class FolioUITests: XCTestCase {
         XCTAssertTrue(app.navigationBars["Annotations"].waitForExistence(timeout: 10))
         XCTAssertGreaterThan(app.cells.count, 0, "A saved bookmark must survive relaunch")
         app.buttons["Done"].tap()
-        app.buttons["Close"].tap()
+        let close = app.buttons["reader.close"]
+        if close.waitForExistence(timeout: 5) { close.tap() }
         let delete = app.buttons["Delete download"]
         for _ in 0..<5 where !delete.isHittable { app.swipeUp() }
         XCTAssertTrue(delete.waitForExistence(timeout: 10)); delete.tap()

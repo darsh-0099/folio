@@ -26,7 +26,9 @@ struct EPUBReader: UIViewControllerRepresentable {
     override func viewDidLoad() {
         super.viewDidLoad(); view.backgroundColor = .systemBackground
         title = record.book?.title
-        navigationItem.leftBarButtonItem = UIBarButtonItem(systemItem: .close, primaryAction: UIAction { [weak self] _ in self?.dismiss(animated: true) })
+        let close = UIBarButtonItem(systemItem: .close, primaryAction: UIAction { [weak self] _ in self?.dismiss(animated: true) })
+        close.accessibilityIdentifier = "reader.close"; close.accessibilityLabel = "Close book"
+        navigationItem.leftBarButtonItem = close
         loading.center = view.center; loading.autoresizingMask = [.flexibleWidth, .flexibleHeight]; view.addSubview(loading); loading.startAnimating()
         Task { await load() }
     }
@@ -129,7 +131,7 @@ struct EPUBReader: UIViewControllerRepresentable {
             self?.dismiss(animated: true) { Task { await self?.navigator?.go(to: locator) } }
         }, onDelete: { [weak self] item in
             self?.context.delete(item); try? self?.context.save(); self?.restoreHighlights()
-        })
+        }, onClose: { [weak self] in self?.dismiss(animated: true) })
         present(UIHostingController(rootView: list), animated: true)
     }
     func searchPrompt() {
@@ -190,6 +192,7 @@ struct ReaderList: View {
 }
 struct AnnotationList: View {
     var items: [Annotation]; var onSelect: (Annotation) -> Void; var onDelete: (Annotation) -> Void
+    var onClose: () -> Void
     @State private var deleted = Set<UUID>()
     @Environment(\.dismiss) private var dismiss
     var body: some View {
@@ -200,6 +203,6 @@ struct AnnotationList: View {
                 }.swipeActions { Button("Delete", role: .destructive) { onDelete(item); deleted.insert(item.id) } }
             }
             if items.isEmpty { Text("Save a bookmark or highlight to find it here.") }
-        }.navigationTitle("Annotations").toolbar { Button("Done") { dismiss() } } }
+        }.navigationTitle("Annotations").toolbar { Button("Done") { onClose() } } }
     }
 }

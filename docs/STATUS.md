@@ -35,3 +35,9 @@ details and tapped Download but timed out before Read appeared. Download validat
 and simulator transfer diagnostics are being investigated; do not claim the end-to-end
 reader flow has passed yet. Simulator transfers now use a foreground session with the
 same delegate/validation/storage code; physical devices retain background URLSession.
+
+Run 43821681222: all 10 unit tests and tab/settings UI test passed. The live reading
+flow successfully searched, downloaded, opened Readium, saved a bookmark, relaunched,
+reopened the book and verified its annotation list was nonempty. Its final Close query
+failed to locate the system bar item; explicit reader-close accessibility identifiers
+and explicit UIKit annotation-sheet dismissal were added for the next run.
