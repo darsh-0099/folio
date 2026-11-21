@@ -1,17 +1,19 @@
-# Folio 1.1 implementation status
+# Folio build 3 implementation status
 
-- Restored and inspected the Linux workspace and GitHub main, preserving the prior
-  working IPA while changes were implemented and verified.
-- Improved library search/sorting/filtering, Continue Reading, completion controls,
-  removal confirmations and offline metadata use.
-- Added real weekly Activity charts and interval-based reading-time accounting.
-- Corrected catalog pagination, subject requests, cache bounds and metadata duplication.
-- Hardened Archive flag decoding and transfer cancellation/validation/receipt recovery.
-- Added bounded Gutenberg maintenance fallback and actionable HTTP availability errors.
-- Improved reader appearance dismissal, annotation search/deduplication and PDF safe areas.
-- Clean device build, 27 unit/persistence tests, 2 UI tests and 4 local packaging tests
-  passed. Evidence and precise limits are in STATUS.md.
-- Delivered regenerated Xcode project, dependency lock, verified unsigned IPA, source
-  archive, README, release notes and test report. GitHub is the authoritative source.
-- Physical-iPhone/SideStore installation, airplane-mode and broad manual QA remain
-  pending hardware access. Optional AI integration is still deferred.
+- Inspected the Linux checkout, GitHub repository and build 2 evidence. GitHub macOS
+  runners provide the Apple SDK; no local Xcode or physical iPhone was available.
+- Added coordinated Files import, metadata extraction, validation, durable storage,
+  content-based deduplication and reimport preserving progress and annotations.
+- Added saved-note editing, validated PDF page selection, current-page reporting and
+  protection against initial PDFKit page events erasing the resume position.
+- Added adaptive accent colors, improved cover-placeholder contrast and reader reset.
+- Diagnosed a real Gutendex timeout; canonicalized queries, retained explicit copyright
+  checks and added partial-failure retry controls and UI diagnostics.
+- Added import, note, PDF navigation/resume and catalog regression coverage. Production
+  discovery remains live; the original test EPUB is excluded from the Release app.
+- Clean device build and independent IPA verification passed. All 42 unit/persistence
+  tests, 2 simulator UI tests and 4 local packaging checks passed.
+- Synchronized the generated project/dependency lock, final test report, source archive
+  and SideStore-ready unsigned device IPA after verification.
+- Physical SideStore installation, airplane-mode/background behavior and broad manual
+  reader/accessibility QA remain pending hardware access. Optional AI is deferred.

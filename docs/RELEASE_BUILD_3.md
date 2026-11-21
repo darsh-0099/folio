@@ -11,7 +11,11 @@
   applied after layout; the navigation bar reports current page and page count.
 - Adaptive accent colors for light/dark appearance; darker cover placeholders improve
   white-text contrast. Reader preferences have a confirmed reset action.
-- Stronger live bookmark assertion checks an actual saved annotation row.
+- Prevent PDFKit's initial page event from erasing the saved resume page.
+- Canonical Gutendex queries and retry controls for partial catalog outages; copyright
+  remains checked on each decoded result before offering the edition.
+- Stronger live bookmark assertion checks an actual saved annotation row. Catalog and
+  download failures include diagnostic screenshots in the XCTest result bundle.
 - New offline import, duplicate/reimport, note editing, page validation and file rejection
   tests. The original MIT-licensed EPUB fixture is test-only; production catalogs remain
   live and the live UI test still downloads the real Gutenberg #1342 book.
@@ -19,4 +23,7 @@
 Imported text files are limited to 10 MB for the plain-text view. EPUB/PDF remain the
 recommended formats for large books. Import does not remove DRM or grant content rights.
 
-Verification is in progress. The final build and test report will be in STATUS.md.
+Verified: clean arm64 iPhoneOS Release build, 42 unit/persistence tests, 2 simulator UI
+tests and 4 local packaging tests passed. The real Gutenberg download, saved bookmark
+after relaunch and download deletion passed. See [STATUS.md](STATUS.md) for the artifact,
+checksum, evidence and remaining physical-device/manual QA.

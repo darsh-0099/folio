@@ -19,4 +19,11 @@ Not yet executed. Use the unsigned **device** IPA after a successful Actions run
 - Test download cancellation, app termination during download, low storage, disconnected
   networking, failed covers, VoiceOver, largest Dynamic Type and Reduce Motion.
 
+- Import a personal DRM-free EPUB, PDF and UTF-8 TXT through Library's Files picker.
+  Repeat an import and confirm no duplicate; delete/reimport its file and confirm
+  position and annotations remain. Test an iCloud file that is not yet local.
+- Edit an existing saved note; cancel a second edit; relaunch and verify persistence.
+- Resume a multipage PDF on a later page. Enter invalid page numbers, then jump to a
+  valid page and verify the page counter. Reset reader preferences and confirm values.
+
 Record device model, iOS version, commit SHA and SideStore version with results.

@@ -4,23 +4,21 @@ Native SwiftUI eBook reader for iPhone, iOS 17+. Bundle ID: `com.folio.reader`.
 
 ## Status
 
-**Folio 1.1 (build 2): clean device build and all 29 iOS tests passed** in
-[Actions run 44878668522](https://github.com/darsh-0099/folio/actions/runs/44878668522).
-The verified unsigned arm64 IPA is in **Folio-device-unsigned**, together with the
-complete generated Xcode project and checksum. Bundle ID `com.folio.reader`, iPhone
-only, iOS 17+. The unchanged identifier supports updating an existing installation.
+**Folio 1.2 (build 3): clean device build and all 44 iOS tests passed** in
+[Actions run 44956691849](https://github.com/darsh-0099/folio/actions/runs/44956691849).
+The verified unsigned arm64 IPA, generated Xcode project and checksum are uploaded as
+**Folio-device-unsigned**. Bundle ID `com.folio.reader`, iPhone only, iOS 17+.
+The unchanged identifier supports updating an existing installation.
 
-New in 1.1: searchable/sortable library, Continue Reading, completion filters, safe
-removal confirmations, weekly Activity charts, corrected reading-time accounting,
-per-source pagination, durable transfer receipts, stricter access flags, annotation
-search/deduplication, and Gutenberg maintenance fallback. See
-[release notes](docs/RELEASE_1_1.md).
+New in build 3: Files import for EPUB/PDF/TXT, content-based import deduplication,
+reimport without losing progress, editable annotation notes, validated PDF page
+navigation, safer PDF resume, adaptive accent colors, reader preference reset and
+catalog retry controls. See [release notes](docs/RELEASE_BUILD_3.md).
 
-The live UI test downloaded a real book, opened Readium, adjusted font size, saved a
-bookmark, relaunched, reopened the book and confirmed download deletion. Physical
-SideStore installation, airplane mode and background transfers remain manual checks.
-See [docs/STATUS.md](docs/STATUS.md) for evidence and limits; this is not a claim of a
-complete production/device QA pass.
+The live UI test downloaded a real EPUB, changed appearance, saved a bookmark,
+relaunched, required the saved annotation row and confirmed download deletion.
+Physical SideStore installation, airplane mode and background transfers remain manual
+checks. See [docs/STATUS.md](docs/STATUS.md) for actual build/test evidence and limits.
 
 ## Build entirely on GitHub
 
@@ -87,7 +85,12 @@ unsigned until SideStore signs it. Never install a simulator `.app` or ZIP of so
 - Readium EPUB pagination/scrolling, TOC, native selection, images and hyperlinks,
   font/spacing/margin/theme controls, locator-based resume, bookmarks, highlights and
   notes, annotation deletion and paged full-book search. Selected-passage speech controls.
-- PDFKit page/zoom/search/resume. UTF-8 plain text viewing has no EPUB features.
+- Import EPUB/PDF/TXT from **Library → Import book** using the native Files picker.
+  Validated files are stored offline; identical content reuses the record and progress.
+  Reimport a deleted local file to restore reading availability.
+- Edit saved annotation notes from their swipe action or context menu.
+- PDFKit page/zoom/search/resume with validated page entry and current-page reporting.
+  UTF-8 plain text viewing has no EPUB features and is limited to 10 MB.
 - Persistent daily time, goal, reading/completed counts and streaks. Two-minute inactivity
   cutoff; the operating system's active-app state excludes background reading time.
 - Dynamic Type SwiftUI screens, system controls, accessible labels and light/dark UI.
@@ -95,10 +98,13 @@ unsigned until SideStore signs it. Never install a simulator `.app` or ZIP of so
 
 ## Tests and verification
 
-`FolioTests` contains 27 tests covering decoding, missing metadata, copyright/license/access gates,
+`FolioTests` contains 42 tests covering decoding, missing metadata, copyright/license/access gates,
 malformed responses, duplicate records, streak boundaries, disk-backed SwiftData reopen,
 locator and annotation persistence, offline file existence/deletion and corrupt-download
-rejection. Run them through Actions or `xcodebuild test` on a Mac.
+rejection. Build 3 adds real EPUB/PDF/TXT import, content deduplication, reimport,
+annotation editing, page validation and PDF initial-layout resume protection. Its EPUB
+fixture is an original MIT-licensed test publication, excluded from the Release app.
+Run tests through Actions or `xcodebuild test` on a Mac.
 
 `FolioUITests` covers tab navigation and reader settings. Push builds also run a live
 Gutenberg search/download/read/bookmark/relaunch/delete integration test. Public catalog
