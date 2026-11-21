@@ -27,7 +27,11 @@ final class FolioUITests: XCTestCase {
         for _ in 0..<5 where !download.isHittable { app.swipeUp() }
         if download.exists { download.tap() }
         let read = app.buttons["reader.open"]
-        let readable = read.waitForExistence(timeout: 180)
+        let readiness = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+            read.exists || app.staticTexts["download.error"].exists
+        }, object: nil)
+        let result = XCTWaiter.wait(for: [readiness], timeout: 300)
+        let readable = result == .completed && read.exists
         if !readable {
             print("FOLIO DOWNLOAD DIAGNOSTIC: " + app.debugDescription)
             let capture = XCTAttachment(screenshot: app.screenshot()); capture.lifetime = .keepAlways; add(capture)

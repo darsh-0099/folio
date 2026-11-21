@@ -38,7 +38,7 @@ struct BookDetailView: View {
                         }
                     }
                 }
-                if let message = record?.downloadError { Text(message).foregroundStyle(.red).font(.callout) }
+                if let message = record?.downloadError { Text(message).foregroundStyle(.red).font(.callout).accessibilityIdentifier("download.error") }
                 if let record {
                     if record.isDownloaded { Button("Delete download", role: .destructive) { confirmDelete = true } }
                     Button("Remove from Library", role: .destructive) { confirmRemove = true }
