@@ -4,16 +4,23 @@ Native SwiftUI eBook reader for iPhone, iOS 17+. Bundle ID: `com.folio.reader`.
 
 ## Status
 
-**Device build and all 12 iOS tests passed** in
-[Actions run 43823195236](https://github.com/darsh-0099/folio/actions/runs/43823195236).
-The verified unsigned arm64 IPA is in its **Folio-device-unsigned** artifact, with the
-generated Xcode project and checksum. Bundle ID `com.folio.reader`, iPhone only, iOS 17+.
+**Folio 1.1 (build 2): clean device build and all 29 iOS tests passed** in
+[Actions run 44878668522](https://github.com/darsh-0099/folio/actions/runs/44878668522).
+The verified unsigned arm64 IPA is in **Folio-device-unsigned**, together with the
+complete generated Xcode project and checksum. Bundle ID `com.folio.reader`, iPhone
+only, iOS 17+. The unchanged identifier supports updating an existing installation.
 
-The live simulator test searched for a real Gutenberg book, downloaded and opened it,
-saved a bookmark, relaunched, reopened the local book, checked annotation persistence,
-and deleted its download. Physical-iPhone installation, airplane mode and background
-transfers remain manual checks. See [docs/STATUS.md](docs/STATUS.md) for exact evidence
-and limits; the app is not claimed to have completed production/device QA.
+New in 1.1: searchable/sortable library, Continue Reading, completion filters, safe
+removal confirmations, weekly Activity charts, corrected reading-time accounting,
+per-source pagination, durable transfer receipts, stricter access flags, annotation
+search/deduplication, and Gutenberg maintenance fallback. See
+[release notes](docs/RELEASE_1_1.md).
+
+The live UI test downloaded a real book, opened Readium, adjusted font size, saved a
+bookmark, relaunched, reopened the book and confirmed download deletion. Physical
+SideStore installation, airplane mode and background transfers remain manual checks.
+See [docs/STATUS.md](docs/STATUS.md) for evidence and limits; this is not a claim of a
+complete production/device QA pass.
 
 ## Build entirely on GitHub
 
@@ -57,6 +64,9 @@ The workflow uploads the generated project including its resolved package versio
    rules apply; SideStore manages signing. This repository cannot verify your personal
    signing configuration or guarantee a particular SideStore version's behavior.
 
+When updating, retain the existing app and install the new IPA through SideStore with
+the same account/identifier so its sandbox data can be preserved.
+
 The package contains `Payload/Folio.app/`, targets iPhone arm64, and uses standard
 frameworks. Background URLSession needs no special background entitlement. The app is
 unsigned until SideStore signs it. Never install a simulator `.app` or ZIP of source code.
@@ -68,6 +78,9 @@ unsigned until SideStore signs it. Never install a simulator `.app` or ZIP of so
   publication/language/subject information and edition identifiers; Archive metadata/files.
 - Source-attributed details, saved books, download progress/cancel/retry, file checks,
   missing-file recovery, storage usage and deletion.
+- Gutenberg EPUB3-with-images downloads can retry once on its HTTPS distribution
+  host during primary-site 502/503/504 outages. Authentication/permission errors, missing
+  files and rate limits do not trigger fallback.
 - Conservative Archive rights allowlist: CC0, public-domain mark, CC BY 4.0 and CC BY-SA
   4.0 URLs. Dark/restricted/private files are excluded. Gutenberg copyright must be false.
   Availability is a catalog declaration, not a worldwide copyright determination.
@@ -82,7 +95,7 @@ unsigned until SideStore signs it. Never install a simulator `.app` or ZIP of so
 
 ## Tests and verification
 
-`FolioTests` includes decoding, missing metadata, copyright/license/access gates,
+`FolioTests` contains 27 tests covering decoding, missing metadata, copyright/license/access gates,
 malformed responses, duplicate records, streak boundaries, disk-backed SwiftData reopen,
 locator and annotation persistence, offline file existence/deletion and corrupt-download
 rejection. Run them through Actions or `xcodebuild test` on a Mac.

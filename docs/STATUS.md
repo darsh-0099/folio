@@ -1,51 +1,62 @@
-# Verified build and test results
+# Folio 1.1 — verified build and test results
 
-Successful GitHub Actions run: https://github.com/darsh-0099/folio/actions/runs/43823195236
+Successful run: https://github.com/darsh-0099/folio/actions/runs/44878668522
 
-Tested application commit: `41c634da65f03ec5dca9c9b5bfa8942f0dfff761`.
-Subsequent documentation-only commits do not change this executable.
+Tested application commit: `1575a5f34e34aadae8be9e00c4c9ebc0f4720a9d`.
+Later documentation/project synchronization commits do not change the executable.
 
-- Clean iPhoneOS Release device build: **passed**.
-- Toolchain: **Xcode 16.4, Swift 6.1.2**, minimum deployment **iOS 17.0**.
-- Executable: **arm64**, Mach-O platform **iOS (2)**, minimum OS **17.0**.
-- App: `com.folio.reader`, iPhone device family `[1]`.
-- Signing: **unsigned**, for SideStore to re-sign. No provisioning profile is embedded.
-- Package: `Payload/Folio.app/`, app icons, SwiftPM Readium resources and dependency
-  linkage checked. ZIP CRC checks and independent Mach-O verification passed.
-- **10 unit/persistence tests passed**, zero failures.
+- Version **1.1 (build 2)**; bundle ID **com.folio.reader**; iPhone family `[1]`.
+- Clean iPhoneOS Release build: **passed**, with Xcode 16.4 / iPhoneOS 18.5 SDK.
+- Mach-O: **arm64**, physical iOS platform **2**, minimum OS **17.0**.
+- Signing: **unsigned**, ready for SideStore to re-sign with the user's account.
+- Package: `Payload/Folio.app/`, icons, Readium resources and dependencies verified.
+  Archive CRCs and independent executable/platform checks passed.
+- **27 unit/persistence tests passed**, zero failures.
 - **2 simulator UI tests passed**, zero failures.
-- **4 local Python packaging/configuration tests passed**, zero failures.
-- All **15 Swift source files** passed local syntax parsing; compilation was separately
-  verified by the actual Apple SDK build above.
+- **4 local packaging/configuration tests passed**, zero failures.
+- All **17 Swift files** passed local syntax parsing; the Apple SDK compilation
+  above separately establishes type checking and linkage.
 
 IPA SHA-256:
-`c14a058541c6cf9519387d018d64b2ebc1d88cc0b9458f2023541b1208e73280`
+`191f7686e0d4ca771c1ec107c36134db4be6589bec82f56c70d3f20e6554d5ae`
 
-Device artifact: https://github.com/darsh-0099/folio/actions/runs/43823195236/artifacts/14205537492
+Device artifact: https://github.com/darsh-0099/folio/actions/runs/44878668522/artifacts/14696433541
 
-## What the UI test actually established
+## Verified behavior
 
-The test used real public catalogs and the actual Project Gutenberg #1342 EPUB.
-It searched for Pride and Prejudice, opened details, downloaded the EPUB, opened
-Readium, saved a bookmark, navigated, terminated the app, relaunched, opened the local
-book, verified a nonempty persisted annotation list, closed the reader, deleted the
-file and verified the Read action disappeared. A separate UI test opened all five tabs
-and changed the continuous-scrolling preference. Persistence tests reopened an on-disk
-SwiftData store and asserted exact saved progress/locator and note values.
+Unit tests cover API decoding and malformed/missing metadata; per-source pagination
+and failed-source retry cursors; Archive rights and access flags; mirror eligibility;
+duplicate books/files/bookmarks; library search/sorting/filtering; reading intervals,
+inactivity and midnight; disk-backed locator/note restoration; local deletion and
+transfer-state cleanup; receipt serialization/path validation; valid/corrupt PDFs and
+corrupt/incomplete EPUB rejection.
 
-The simulator uses foreground URLSession transfers through the same delegate,
-validation and storage pipeline. Physical iPhones use background URLSession. Simulator
-success does not establish physical-device background transfer or SideStore signing.
+The live UI test searches for Gutenberg #1342, opens its details, downloads the real
+EPUB, opens Readium, changes the font-size slider through the reader appearance sheet,
+saves a bookmark, navigates, terminates, relaunches, opens the local book, checks the
+annotation list, closes the reader, confirms deletion, and verifies Read disappears.
+A separate UI test navigates all five tabs and changes continuous-scrolling settings.
 
-## Remaining verification and feature limits
+During development Gutenberg's primary download site returned HTTP 503 with a
+maintenance notice. The same public-domain EPUB was independently downloaded from
+`gutenberg.pglaf.org`: HTTP 200, 24,864,480 bytes, correct EPUB mimetype/container,
+182 ZIP entries, valid CRCs and the title Pride and Prejudice. Folio now performs one
+fallback for recognized Gutenberg EPUB3-with-images URLs on 502/503/504 only. Access
+denials, missing editions, rate limits and non-Gutenberg sources never use this route.
 
-No physical iPhone or SideStore signing session was available. The airplane-mode flow,
-real-device background transfers, interruption recovery, VoiceOver audit, PDF reading,
-text selection/highlight rendering, speech playback, TOC and visual appearance changes
-need the manual checks in ACCEPTANCE.md. No claim of a complete device QA pass is made.
+## Remaining device QA and limits
 
-AI provider integration and dedicated author biographies/edition comparison are deferred.
-Speech reads selected EPUB text, not automatic whole-book narration. PDF has page/zoom/
-search/resume but no EPUB annotations. Plain text has no reading-position/statistics
-tracking. Interrupted transfers restart when necessary rather than guaranteeing byte
-resume. See README.md for the full feature scope and installation instructions.
+No iPhone or SideStore signing session was available. Physical-device installation,
+airplane mode, background transfers/retry scheduling and interruption recovery still
+need manual verification. The simulator uses foreground URLSession through the same
+validation/storage pipeline; iPhones retain background URLSession.
+
+Interactive PDF navigation/zoom/search, highlight rendering and text-selection notes,
+speech, detailed VoiceOver/contrast testing and broad EPUB compatibility still need
+manual coverage. PDF file validation and annotation storage have automated tests;
+those tests do not establish every reader interaction.
+
+AI integration, author biographies and rich edition comparison remain deferred.
+Speech reads selected EPUB text. PDF has no EPUB annotations. Plain text has no
+position/statistics tracking. Interrupted transfers may restart rather than resume
+at a byte boundary. See ACCEPTANCE.md and README.md for installation and full scope.

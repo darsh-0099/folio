@@ -24,5 +24,5 @@
 - Add regression tests for time accounting, library behavior, access flags, pagination,
   receipts and PDF validation. The live reading test also adjusts font size.
 
-Version: 1.1 (build 2), same bundle identifier com.folio.reader. Verification is in
-progress; docs/STATUS.md will record the final build and test evidence.
+Version: 1.1 (build 2), same bundle identifier com.folio.reader. The clean device build and all 29 iOS tests passed in Actions run 44878668522.
+See docs/STATUS.md for build evidence, test scope and remaining physical-device checks.
