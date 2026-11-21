@@ -82,7 +82,7 @@ struct BookCover: View {
     var body: some View {
         AsyncImage(url: book.cover) { image in image.resizable().scaledToFit() } placeholder: {
             ZStack {
-                LinearGradient(colors: [Color.accentColor.opacity(0.7), Color.accentColor.opacity(0.3)], startPoint: .topLeading, endPoint: .bottomTrailing)
+                LinearGradient(colors: [Color(red: 0.12, green: 0.27, blue: 0.24), Color(red: 0.19, green: 0.38, blue: 0.34)], startPoint: .topLeading, endPoint: .bottomTrailing)
                 VStack(spacing: 12) { Image(systemName: "book.closed").font(.largeTitle); Text(book.title).font(.system(.headline, design: .serif)).multilineTextAlignment(.center).lineLimit(4) }.padding().foregroundStyle(.white)
             }
         }.frame(maxWidth: .infinity).frame(height: height).clipShape(RoundedRectangle(cornerRadius: 10)).shadow(color: .black.opacity(0.12), radius: 6, y: 4).accessibilityHidden(true)

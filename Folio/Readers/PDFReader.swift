@@ -10,6 +10,7 @@ struct PDFReader: UIViewControllerRepresentable {
 @MainActor final class PDFController: UIViewController {
     let record: LibraryBook; let context: ModelContext
     let pdfView = PDFView(); var clock: ReadingClock?
+    private var needsRestore = true
     init(record: LibraryBook, context: ModelContext) { self.record = record; self.context = context; super.init(nibName: nil, bundle: nil) }
     required init?(coder: NSCoder) { fatalError("Unsupported") }
     override func viewDidLoad() {
@@ -19,7 +20,7 @@ struct PDFReader: UIViewControllerRepresentable {
         pdfView.autoScales = true; pdfView.displayMode = .singlePageContinuous
         if let url = record.fileURL, let document = PDFDocument(url: url), !document.isLocked {
             pdfView.document = document
-            if let page = document.page(at: min(record.pdfPage, max(0, document.pageCount - 1))) { pdfView.go(to: page) }
+            pdfView.accessibilityLabel = "PDF document"
         } else {
             let label = UILabel(frame: view.bounds); label.text = "The PDF is missing, locked or corrupt."; label.textAlignment = .center; view.addSubview(label)
         }
@@ -35,22 +36,35 @@ struct PDFReader: UIViewControllerRepresentable {
             }); clock?.start()
         }
     }
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        guard needsRestore, let document = pdfView.document, document.pageCount > 0 else { return }
+        needsRestore = false
+        pdfView.layoutIfNeeded()
+        if let page = document.page(at: PageNavigation.clamp(record.pdfPage, count: document.pageCount)) { pdfView.go(to: page) }
+        pageChanged()
+    }
     func presentTool(_ controller: UIViewController, animated: Bool) {
         clock?.pause(); present(controller, animated: animated)
     }
     @objc func pageChanged() {
         guard let document = pdfView.document, let page = pdfView.currentPage else { return }
-        record.pdfPage = document.index(for: page); record.progress = Double(record.pdfPage + 1) / Double(max(1, document.pageCount)); record.lastRead = Date()
+        record.pdfPage = document.index(for: page)
+        navigationItem.prompt = "Page \(record.pdfPage + 1) of \(document.pageCount)"
+        record.progress = Double(record.pdfPage + 1) / Double(max(1, document.pageCount)); record.lastRead = Date()
         if record.progress >= 1 { record.completed = true }; try? context.save(); clock?.interact()
     }
     @objc func pagePrompt() {
-        let alert = UIAlertController(title: "Go to page", message: "1–\(pdfView.document?.pageCount ?? 0)", preferredStyle: .alert)
-        alert.addTextField { $0.keyboardType = .numberPad }
-        alert.addAction(UIAlertAction(title: "Cancel", style: .cancel))
-        alert.addAction(UIAlertAction(title: "Go", style: .default) { [weak self, weak alert] _ in
-            guard let self, let text = alert?.textFields?.first?.text, let number = Int(text), let page = self.pdfView.document?.page(at: number - 1) else { return }
-            self.pdfView.go(to: page)
-        }); presentTool(alert, animated: true)
+        guard let document = pdfView.document, document.pageCount > 0 else { return }
+        let picker = PDFPagePicker(count: document.pageCount, current: record.pdfPage, go: { [weak self] index in
+            self?.dismiss(animated: true) {
+                guard let self, let page = self.pdfView.document?.page(at: index) else { return }
+                self.pdfView.go(to: page)
+            }
+        }, close: { [weak self] in self?.dismiss(animated: true) })
+        let controller = UIHostingController(rootView: picker)
+        controller.modalPresentationStyle = .pageSheet; controller.sheetPresentationController?.detents = [.medium()]
+        presentTool(controller, animated: true)
     }
     @objc func search() {
         let alert = UIAlertController(title: "Search PDF", message: nil, preferredStyle: .alert); alert.addTextField()
@@ -85,6 +99,37 @@ struct ReaderDestination: View {
         case "epub": EPUBReader(record: record, context: context).ignoresSafeArea()
         case "pdf": PDFReader(record: record, context: context).ignoresSafeArea()
         default: TextReader(record: record)
+        }
+    }
+}
+
+enum PageNavigation {
+    static func index(for text: String, count: Int) -> Int? {
+        guard count > 0, let page = Int(text.trimmingCharacters(in: .whitespacesAndNewlines)), page >= 1, page <= count else { return nil }
+        return page - 1
+    }
+    static func clamp(_ index: Int, count: Int) -> Int { max(0, min(index, max(0, count - 1))) }
+}
+struct PDFPagePicker: View {
+    var count: Int
+    var go: (Int) -> Void
+    var close: () -> Void
+    @State private var text: String
+    init(count: Int, current: Int, go: @escaping (Int) -> Void, close: @escaping () -> Void) {
+        self.count = count; self.go = go; self.close = close
+        _text = State(initialValue: String(PageNavigation.clamp(current, count: count) + 1))
+    }
+    var body: some View {
+        NavigationStack {
+            Form {
+                TextField("Page number", text: $text).keyboardType(.numberPad).accessibilityIdentifier("pdf.pageNumber")
+                Text("Enter a page from 1 to \(count).").foregroundStyle(.secondary)
+                if !text.isEmpty && PageNavigation.index(for: text, count: count) == nil { Text("That page is outside this document.").foregroundStyle(.red) }
+            }.navigationTitle("Go to page")
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) { Button("Cancel", action: close) }
+                    ToolbarItem(placement: .confirmationAction) { Button("Go") { if let index = PageNavigation.index(for: text, count: count) { go(index) } }.disabled(PageNavigation.index(for: text, count: count) == nil) }
+                }
         }
     }
 }

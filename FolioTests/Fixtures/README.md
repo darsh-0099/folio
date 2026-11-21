@@ -1,0 +1,1 @@
+Minimal.epub is original Folio test content under the project MIT license. It is a standards-conforming EPUB3 fixture for offline import tests. Production discovery uses live catalogs; the live UI test uses the real Project Gutenberg #1342 EPUB.

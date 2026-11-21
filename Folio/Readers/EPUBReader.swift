@@ -136,7 +136,10 @@ struct EPUBReader: UIViewControllerRepresentable {
             self?.dismiss(animated: true) { Task { await self?.navigator?.go(to: locator) } }
         }, onDelete: { [weak self] item in
             self?.context.delete(item); try? self?.context.save(); self?.restoreHighlights()
-        }, onClose: { [weak self] in self?.dismiss(animated: true) })
+        }, onClose: { [weak self] in self?.dismiss(animated: true) }, onEdit: { [weak self] annotation, note in
+            guard let self else { return }
+            try AnnotationRepository.updateNote(annotation, note: note, context: self.context)
+        })
         presentTool(UIHostingController(rootView: list), animated: true)
     }
     func searchPrompt() {
@@ -198,6 +201,8 @@ struct ReaderList: View {
 struct AnnotationList: View {
     var items: [Annotation]; var onSelect: (Annotation) -> Void; var onDelete: (Annotation) -> Void
     var onClose: () -> Void
+    var onEdit: (Annotation, String) throws -> Void
+    @State private var editing: Annotation?
     @State private var deleted = Set<UUID>()
     @State private var query = ""
     private var visible: [Annotation] {
@@ -208,9 +213,40 @@ struct AnnotationList: View {
             ForEach(visible) { item in
                 Button { onSelect(item) } label: {
                     VStack(alignment: .leading) { Text(item.text).lineLimit(4); if !item.note.isEmpty { Text(item.note).font(.caption).foregroundStyle(.secondary) } }
-                }.swipeActions { Button("Delete", role: .destructive) { onDelete(item); deleted.insert(item.id) } }
+                }.accessibilityIdentifier("annotation.\(item.id.uuidString)")
+                    .swipeActions {
+                        Button("Delete", role: .destructive) { onDelete(item); deleted.insert(item.id) }
+                        Button("Edit note", systemImage: "square.and.pencil") { editing = item }.tint(.accentColor)
+                    }
+                    .contextMenu { Button("Edit note", systemImage: "square.and.pencil") { editing = item } }
             }
             if visible.isEmpty { Text(query.isEmpty ? "Save a bookmark or highlight to find it here." : "No passages or notes match your search.").foregroundStyle(.secondary) }
-        }.navigationTitle("Annotations").searchable(text: $query, prompt: "Passage or note").toolbar { Button("Done") { onClose() } } }
+        }.navigationTitle("Annotations").searchable(text: $query, prompt: "Passage or note").toolbar { Button("Done") { onClose() } }
+                .sheet(item: $editing) { item in AnnotationEditor(annotation: item) { note in try onEdit(item, note) } }
+        }
+    }
+}
+
+struct AnnotationEditor: View {
+    let annotation: Annotation
+    let save: (String) throws -> Void
+    @State private var note: String
+    @State private var error: String?
+    @Environment(\.dismiss) private var dismiss
+    init(annotation: Annotation, save: @escaping (String) throws -> Void) {
+        self.annotation = annotation; self.save = save; _note = State(initialValue: annotation.note)
+    }
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("Passage") { Text(annotation.text).textSelection(.enabled) }
+                Section("Your note") { TextEditor(text: $note).frame(minHeight: 180).accessibilityLabel("Note text") }
+            }.navigationTitle("Edit note")
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
+                    ToolbarItem(placement: .confirmationAction) { Button("Save") { do { try save(note); dismiss() } catch { self.error = error.localizedDescription } } }
+                }
+                .alert("Unable to save note", isPresented: Binding(get: { error != nil }, set: { if !$0 { error = nil } })) { Button("OK") { error = nil } } message: { Text(error ?? "") }
+        }
     }
 }

@@ -37,6 +37,7 @@ import CryptoKit
         case "pdf":
             guard let pdf = PDFDocument(url: url), pdf.pageCount > 0, !pdf.isLocked else { throw FolioError.message("The PDF is corrupt or locked.") }
         case "txt":
+            guard bytes <= 10_000_000 else { throw FolioError.message("Text files larger than 10 MB are not supported. Use EPUB or PDF for larger books.") }
             guard (try? String(contentsOf: url, encoding: .utf8)) != nil else { throw FolioError.message("This text file is not valid UTF-8.") }
         default: throw FolioError.message("Unsupported book format.")
         }

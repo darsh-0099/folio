@@ -13,7 +13,7 @@ import SwiftData
         WindowGroup {
             switch storage {
             case .success(let container):
-                RootView().modelContainer(container).tint(Color(red: 0.19, green: 0.38, blue: 0.34))
+                RootView().modelContainer(container).tint(Color("AccentColor"))
                     .preferredColorScheme(appearance == "system" ? nil : (appearance == "dark" ? .dark : .light))
             case .failure(let error):
                 ContentUnavailableView("Library unavailable", systemImage: "externaldrive.badge.exclamationmark", description: Text("Folio could not open its library: \(error.localizedDescription). Free storage if needed and relaunch the app."))

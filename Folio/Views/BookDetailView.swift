@@ -62,8 +62,12 @@ struct BookDetailView: View {
                 LabeledContent("Languages", value: book.languages.joined(separator: ", "))
                 if !book.subjects.isEmpty { Text(book.subjects.joined(separator: " · ")).font(.callout).foregroundStyle(.secondary) }
                 if !book.editions.isEmpty { Text("Open Library editions: \(book.editions.joined(separator: ", "))").font(.caption).foregroundStyle(.secondary) }
-                Link(book.availability.contains("Borrow") ? "Borrow through Open Library" : "View source and rights", destination: book.source)
-                if book.files.isEmpty && !loading { Text("No directly downloadable edition with confirmed rights was found. Use the source link for authorized access.").font(.callout).foregroundStyle(.secondary) }
+                if book.origin == "Imported file" {
+                    Text("Imported from Files. If you delete the downloaded file, import the same file again to restore it and retain your reading position.").font(.callout).foregroundStyle(.secondary)
+                } else {
+                    Link(book.availability.contains("Borrow") ? "Borrow through Open Library" : "View source and rights", destination: book.source)
+                }
+                if book.origin != "Imported file" && book.files.isEmpty && !loading { Text("No directly downloadable edition with confirmed rights was found. Use the source link for authorized access.").font(.callout).foregroundStyle(.secondary) }
             }.padding(24)
         }.navigationTitle("Book details").navigationBarTitleDisplayMode(.inline)
             .confirmationDialog("Delete downloaded file?", isPresented: $confirmDelete, titleVisibility: .visible) {
@@ -79,7 +83,7 @@ struct BookDetailView: View {
     func enrich() async {
         loading = true; error = nil
         defer { loading = false }
-        if record?.isDownloaded == true {
+        if book.origin == "Imported file" || record?.isDownloaded == true {
             if let saved = record?.book { book = saved }
             return
         }

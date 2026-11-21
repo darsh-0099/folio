@@ -59,7 +59,9 @@ final class FolioUITests: XCTestCase {
         app.buttons["Chapters, search and annotations"].tap()
         app.buttons["Bookmarks, highlights and notes"].tap()
         XCTAssertTrue(app.navigationBars["Annotations"].waitForExistence(timeout: 10))
-        XCTAssertGreaterThan(app.cells.count, 0, "A saved bookmark must survive relaunch")
+        let savedAnnotation = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "annotation.")).firstMatch
+        XCTAssertTrue(savedAnnotation.waitForExistence(timeout: 10), "A saved bookmark must survive relaunch")
+        XCTAssertFalse(app.staticTexts["Save a bookmark or highlight to find it here."].exists)
         app.buttons["Done"].tap()
         let close = app.buttons["reader.close"]
         if close.waitForExistence(timeout: 5) { close.tap() }

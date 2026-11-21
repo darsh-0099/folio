@@ -19,6 +19,7 @@ struct ReaderAppearance: View {
     @AppStorage("readerFont") var font = "Serif"
     @AppStorage("readerTheme") var theme = "light"
     @AppStorage("readerScroll") var scroll = false
+    @State private var reset = false
     var changed: () -> Void = {}
     var body: some View {
         Form {
@@ -33,6 +34,12 @@ struct ReaderAppearance: View {
             Section("Page") {
                 Picker("Theme", selection: $theme) { Text("Light").tag("light"); Text("Sepia").tag("sepia"); Text("Dark").tag("dark") }
                 Toggle("Continuous scrolling", isOn: $scroll)
+            }
+            Section { Button("Reset reader preferences", role: .destructive) { reset = true } }
+        }.confirmationDialog("Reset reader appearance?", isPresented: $reset, titleVisibility: .visible) {
+            Button("Reset preferences", role: .destructive) {
+                size = 110; line = 1.5; margin = 1; font = "Serif"; theme = "light"; scroll = false
+                changed()
             }
         }.onChange(of: size) { changed() }.onChange(of: line) { changed() }.onChange(of: margin) { changed() }
             .onChange(of: font) { changed() }.onChange(of: theme) { changed() }.onChange(of: scroll) { changed() }

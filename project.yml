@@ -27,9 +27,10 @@ targets:
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
         INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
         INFOPLIST_KEY_UISupportedInterfaceOrientations: UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight
-        MARKETING_VERSION: '1.1'
-        CURRENT_PROJECT_VERSION: '2'
+        MARKETING_VERSION: '1.2'
+        CURRENT_PROJECT_VERSION: '3'
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
         SUPPORTS_MACCATALYST: NO
     dependencies:
       - package: Readium
@@ -43,7 +44,11 @@ targets:
   FolioTests:
     type: bundle.unit-test
     platform: iOS
-    sources: [FolioTests]
+    sources:
+      - path: FolioTests
+        excludes: [Fixtures]
+      - path: FolioTests/Fixtures/Minimal.epub
+        buildPhase: resources
     settings:
       base:
         GENERATE_INFOPLIST_FILE: YES

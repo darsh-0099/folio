@@ -1,6 +1,7 @@
 import SwiftUI
 import SwiftData
 import Charts
+import UniformTypeIdentifiers
 
 struct LibraryView: View {
     @Query(sort: \LibraryBook.added, order: .reverse) private var records: [LibraryBook]
@@ -11,11 +12,15 @@ struct LibraryView: View {
     @State private var reader: LibraryBook?
     @State private var removal: LibraryBook?
     @State private var error: String?
+    @State private var importPicker = false
+    @State private var importing = false
+    @State private var imported: LibraryBook?
     var filtered: [LibraryBook] { LibraryQuery.select(records, query: query, filter: filter, sort: LibrarySort(rawValue: sort) ?? .recent) }
     var continuing: LibraryBook? { records.filter { $0.isDownloaded && $0.lastRead != nil && !$0.completed }.max { ($0.lastRead ?? .distantPast) < ($1.lastRead ?? .distantPast) } }
     var body: some View {
         NavigationStack {
             List {
+                if importing { ProgressView("Importing and validating book…").accessibilityIdentifier("library.importing") }
                 if query.isEmpty, filter == .all, let record = continuing, let book = record.book {
                     Section("Continue reading") {
                         Button { reader = record } label: {
@@ -48,9 +53,30 @@ struct LibraryView: View {
             }.navigationTitle("Library")
                 .searchable(text: $query, prompt: "Search your library")
                 .toolbar {
+                    Button { importPicker = true } label: { Label("Import book", systemImage: "square.and.arrow.down") }
+                        .disabled(importing).accessibilityIdentifier("library.import")
                     Menu {
                         Picker("Sort books", selection: $sort) { ForEach(LibrarySort.allCases) { Text($0.rawValue).tag($0.rawValue) } }
                     } label: { Label("Sort books", systemImage: "arrow.up.arrow.down") }
+                }
+                .fileImporter(isPresented: $importPicker, allowedContentTypes: [.epub, .pdf, .plainText], allowsMultipleSelection: false) { result in
+                    switch result {
+                    case .success(let urls):
+                        guard let url = urls.first else { return }
+                        importing = true
+                        Task {
+                            defer { importing = false }
+                            do { imported = try await BookImporter.importBook(at: url, context: context) }
+                            catch { self.error = error.localizedDescription }
+                        }
+                    case .failure(let error): self.error = error.localizedDescription
+                    }
+                }
+                .sheet(item: $imported) { record in
+                    NavigationStack {
+                        if let book = record.book { BookDetailView(book: book).toolbar { ToolbarItem(placement: .cancellationAction) { Button("Done") { imported = nil } } } }
+                        else { ContentUnavailableView("Imported book unavailable", systemImage: "book.closed") }
+                    }
                 }
                 .fullScreenCover(item: $reader) { ReaderDestination(record: $0) }
                 .confirmationDialog("Remove this book from your library?", isPresented: Binding(get: { removal != nil }, set: { if !$0 { removal = nil } }), titleVisibility: .visible) {
@@ -175,7 +201,7 @@ struct SettingsView: View {
                     Text("Search queries are sent to Gutendex and Open Library. Covers and downloads contact the listed sources. Your library and reading activity stay on this device. No analytics or account required.").font(.caption)
                 }
                 if let error { Section { Text(error).foregroundStyle(.red) } }
-                Section { LabeledContent("Folio", value: "\(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.1") · iOS 17+") }
+                Section { LabeledContent("Folio", value: "\(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.2") · iOS 17+") }
             }.navigationTitle("Settings").onAppear { usage = LibraryFiles.usage() }
                 .confirmationDialog("Delete every downloaded book?", isPresented: $confirmDelete, titleVisibility: .visible) {
                     Button("Delete downloads", role: .destructive) {

@@ -114,7 +114,7 @@ final class DownloadDelegate: NSObject, URLSessionDownloadDelegate, @unchecked S
     }
     private func enqueue(_ ticket: DownloadTicket, url: URL) throws {
         var request = URLRequest(url: url)
-        request.setValue("Folio/1.1 (com.folio.reader)", forHTTPHeaderField: "User-Agent")
+        request.setValue("Folio/1.2 (com.folio.reader)", forHTTPHeaderField: "User-Agent")
         let description = String(data: try JSONEncoder().encode(ticket), encoding: .utf8)
         let task = session.downloadTask(with: request); task.taskDescription = description; task.resume()
     }

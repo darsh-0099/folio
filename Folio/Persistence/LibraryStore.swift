@@ -99,6 +99,11 @@ struct Streaks {
 }
 
 @MainActor enum AnnotationRepository {
+    static func updateNote(_ annotation: Annotation, note: String, context: ModelContext) throws {
+        let previous = annotation.note
+        annotation.note = note
+        do { try context.save() } catch { annotation.note = previous; throw error }
+    }
     @discardableResult static func save(_ annotation: Annotation, context: ModelContext) throws -> Annotation {
         let id = annotation.bookID, locator = annotation.locator, kind = annotation.kind
         let matches = try context.fetch(FetchDescriptor<Annotation>(predicate: #Predicate { $0.bookID == id && $0.locator == locator && $0.kind == kind }))
