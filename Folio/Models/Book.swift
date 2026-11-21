@@ -46,6 +46,10 @@ struct BookFile: Codable, Hashable, Identifiable {
     var expectedBytes: Int64?
     var md5: String?
     var id: String { url.absoluteString }
+    static func deduplicate(_ files: [BookFile]) -> [BookFile] {
+        var seen = Set<URL>()
+        return files.filter { seen.insert($0.url).inserted }
+    }
 }
 enum FolioError: LocalizedError {
     case message(String)
@@ -70,7 +74,7 @@ struct GutenbergBook: Decodable {
                     files: files, availability: files.isEmpty ? "Rights not confirmed" : "Public domain in the USA")
     }
 }
-struct OpenLibraryPage: Decodable { var docs: [OpenLibraryBook] }
+struct OpenLibraryPage: Decodable { var docs: [OpenLibraryBook]; var numFound: Int? }
 struct OpenLibraryBook: Decodable {
     var key: String; var title: String; var author_name: [String]?
     var first_publish_year: Int?; var cover_i: Int?; var language: [String]?

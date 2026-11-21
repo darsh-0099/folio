@@ -14,7 +14,8 @@ struct PDFReader: UIViewControllerRepresentable {
     required init?(coder: NSCoder) { fatalError("Unsupported") }
     override func viewDidLoad() {
         super.viewDidLoad(); view.backgroundColor = .systemBackground; title = record.book?.title
-        pdfView.frame = view.bounds; pdfView.autoresizingMask = [.flexibleWidth, .flexibleHeight]; view.addSubview(pdfView)
+        view.addSubview(pdfView); pdfView.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([pdfView.leadingAnchor.constraint(equalTo: view.leadingAnchor), pdfView.trailingAnchor.constraint(equalTo: view.trailingAnchor), pdfView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor), pdfView.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor)])
         pdfView.autoScales = true; pdfView.displayMode = .singlePageContinuous
         if let url = record.fileURL, let document = PDFDocument(url: url), !document.isLocked {
             pdfView.document = document
@@ -27,7 +28,12 @@ struct PDFReader: UIViewControllerRepresentable {
         navigationItem.leftBarButtonItem = close
         navigationItem.rightBarButtonItems = [UIBarButtonItem(title: "Search", style: .plain, target: self, action: #selector(search)), UIBarButtonItem(title: "Page", style: .plain, target: self, action: #selector(pagePrompt))]
         NotificationCenter.default.addObserver(self, selector: #selector(pageChanged), name: .PDFViewPageChanged, object: pdfView)
-        clock = ReadingClock(context: context); clock?.start()
+        if pdfView.document != nil {
+            clock = ReadingClock(context: context, isReading: { [weak self] in
+                guard let self else { return false }
+                return self.viewIfLoaded?.window != nil && self.presentedViewController == nil && self.navigationController?.presentedViewController == nil
+            }); clock?.start()
+        }
     }
     @objc func pageChanged() {
         guard let document = pdfView.document, let page = pdfView.currentPage else { return }

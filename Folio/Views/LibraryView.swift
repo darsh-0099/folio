@@ -3,29 +3,91 @@ import SwiftData
 
 struct LibraryView: View {
     @Query(sort: \LibraryBook.added, order: .reverse) private var records: [LibraryBook]
-    @State private var downloadedOnly = false
+    @Environment(\.modelContext) private var context
+    @State private var query = ""
+    @State private var filter: LibraryFilter = .all
+    @AppStorage("librarySort") private var sort = LibrarySort.recent.rawValue
     @State private var reader: LibraryBook?
-    var filtered: [LibraryBook] { records.filter { !downloadedOnly || $0.isDownloaded } }
+    @State private var removal: LibraryBook?
+    @State private var error: String?
+    var filtered: [LibraryBook] { LibraryQuery.select(records, query: query, filter: filter, sort: LibrarySort(rawValue: sort) ?? .recent) }
+    var continuing: LibraryBook? { records.filter { $0.isDownloaded && $0.lastRead != nil && !$0.completed }.max { ($0.lastRead ?? .distantPast) < ($1.lastRead ?? .distantPast) } }
     var body: some View {
         NavigationStack {
             List {
-                Toggle("Downloaded only", isOn: $downloadedOnly)
-                if filtered.isEmpty { ContentUnavailableView("Your next chapter awaits", systemImage: "books.vertical", description: Text("Save or download books from Discover and Search.")) }
-                ForEach(filtered) { record in
-                    if let book = record.book {
-                        NavigationLink { BookDetailView(book: book) } label: {
+                if query.isEmpty, filter == .all, let record = continuing, let book = record.book {
+                    Section("Continue reading") {
+                        Button { reader = record } label: {
                             HStack(spacing: 16) {
                                 BookCover(book: book, height: 100).frame(width: 64)
-                                VStack(alignment: .leading, spacing: 6) {
-                                    Text(book.title).font(.headline); Text(book.author).font(.subheadline).foregroundStyle(.secondary)
-                                    Label(record.isDownloaded ? "Available offline" : record.downloadState.capitalized, systemImage: record.isDownloaded ? "checkmark.circle.fill" : "cloud") .font(.caption).foregroundStyle(.secondary)
-                                    ProgressView(value: record.progress)
+                                VStack(alignment: .leading, spacing: 8) {
+                                    Text(book.title).font(.system(.title3, design: .serif, weight: .semibold))
+                                    Text("\(Int(record.progress * 100))% complete").font(.subheadline).foregroundStyle(.secondary)
+                                    Label("Continue Reading", systemImage: "play.circle.fill").font(.headline)
                                 }
-                            }
-                        }.accessibilityIdentifier("library.\(book.id)").swipeActions(edge: .leading) { if record.isDownloaded { Button("Read") { reader = record }.tint(.accentColor) } }
+                            }.padding(.vertical, 6)
+                        }.buttonStyle(.plain).accessibilityIdentifier("library.continue")
                     }
                 }
-            }.navigationTitle("Library").fullScreenCover(item: $reader) { ReaderDestination(record: $0) }
+                Section {
+                    Picker("Show books", selection: $filter) {
+                        ForEach(LibraryFilter.allCases) { Text($0.rawValue).tag($0) }
+                    }.pickerStyle(.menu)
+                    if filtered.isEmpty {
+                        ContentUnavailableView(records.isEmpty ? "Your next chapter awaits" : "No matching books", systemImage: "books.vertical", description: Text(records.isEmpty ? "Save or download books from Discover and Search." : "Try another title, author or filter."))
+                    }
+                    ForEach(filtered) { record in
+                        LibraryBookRow(record: record, open: { reader = record }, remove: { removal = record }, toggleCompletion: {
+                            record.completed.toggle()
+                            if !record.completed { record.lastRead = Date() }
+                            do { try context.save() } catch { self.error = error.localizedDescription }
+                        })
+                    }
+                } header: { Text("\(filtered.count) \(filtered.count == 1 ? "book" : "books")") }
+            }.navigationTitle("Library")
+                .searchable(text: $query, prompt: "Search your library")
+                .toolbar {
+                    Menu {
+                        Picker("Sort books", selection: $sort) { ForEach(LibrarySort.allCases) { Text($0.rawValue).tag($0.rawValue) } }
+                    } label: { Label("Sort books", systemImage: "arrow.up.arrow.down") }
+                }
+                .fullScreenCover(item: $reader) { ReaderDestination(record: $0) }
+                .confirmationDialog("Remove this book from your library?", isPresented: Binding(get: { removal != nil }, set: { if !$0 { removal = nil } }), titleVisibility: .visible) {
+                    Button("Remove book", role: .destructive) {
+                        guard let record = removal else { return }
+                        do { try LibraryRepository.remove(record, context: context) } catch { self.error = error.localizedDescription }
+                        removal = nil
+                    }
+                } message: { Text("This removes the download, bookmarks and notes for this edition.") }
+                .alert("Library error", isPresented: Binding(get: { error != nil }, set: { if !$0 { error = nil } })) { Button("OK") { error = nil } } message: { Text(error ?? "") }
+        }
+    }
+}
+private struct LibraryBookRow: View {
+    var record: LibraryBook
+    var open: () -> Void
+    var remove: () -> Void
+    var toggleCompletion: () -> Void
+    var body: some View {
+        if let book = record.book {
+            NavigationLink { BookDetailView(book: book) } label: {
+                HStack(spacing: 16) {
+                    BookCover(book: book, height: 100).frame(width: 64)
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text(book.title).font(.headline)
+                        Text(book.author).font(.subheadline).foregroundStyle(.secondary)
+                        Label(record.completed ? "Finished" : (record.isDownloaded ? "Available offline" : record.downloadState.capitalized), systemImage: record.completed ? "checkmark.seal.fill" : (record.isDownloaded ? "checkmark.circle.fill" : "cloud")).font(.caption).foregroundStyle(.secondary)
+                        ProgressView(value: record.progress).accessibilityLabel("Reading progress").accessibilityValue("\(Int(record.progress * 100)) percent")
+                    }
+                }.padding(.vertical, 4)
+            }.accessibilityIdentifier("library.\(book.id)")
+                .swipeActions(edge: .leading) { if record.isDownloaded { Button("Read", systemImage: "book", action: open).tint(.accentColor) } }
+                .swipeActions { Button("Remove", role: .destructive, action: remove) }
+                .contextMenu {
+                    if record.isDownloaded { Button("Read", systemImage: "book", action: open) }
+                    Button(record.completed ? "Mark as reading" : "Mark as finished", systemImage: "checkmark.seal", action: toggleCompletion)
+                    Button("Remove from Library", role: .destructive, action: remove)
+                }
         }
     }
 }
@@ -48,7 +110,7 @@ struct ActivityView: View {
                     LabeledContent("Current streak", value: "\(streak.current) days")
                     LabeledContent("Longest streak", value: "\(streak.longest) days")
                     LabeledContent("Books completed", value: "\(books.filter(\.completed).count)")
-                    LabeledContent("Currently reading", value: "\(books.filter { $0.progress > 0 && !$0.completed }.count)")
+                    LabeledContent("Currently reading", value: "\(books.filter { $0.lastRead != nil && !$0.completed }.count)")
                     LabeledContent("Total reading time", value: "\(Int(days.reduce(0) { $0 + $1.seconds } / 60)) minutes")
                 }
                 Section("Recent days") {
@@ -90,11 +152,11 @@ struct SettingsView: View {
                     Text("Search queries are sent to Gutendex and Open Library. Covers and downloads contact the listed sources. Your library and reading activity stay on this device. No analytics or account required.").font(.caption)
                 }
                 if let error { Section { Text(error).foregroundStyle(.red) } }
-                Section { LabeledContent("Folio", value: "1.0 · iOS 17+") }
+                Section { LabeledContent("Folio", value: "\(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.1") · iOS 17+") }
             }.navigationTitle("Settings").onAppear { usage = LibraryFiles.usage() }
                 .confirmationDialog("Delete every downloaded book?", isPresented: $confirmDelete, titleVisibility: .visible) {
                     Button("Delete downloads", role: .destructive) {
-                        do { for book in books where book.downloadState != "downloading" { try LibraryFiles.remove(book) }; try context.save(); usage = LibraryFiles.usage() }
+                        do { for book in books { DownloadManager.shared.cancel(book.id); try LibraryFiles.remove(book) }; try context.save(); usage = LibraryFiles.usage() }
                         catch { self.error = error.localizedDescription }
                     }
                 }

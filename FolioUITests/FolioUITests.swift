@@ -36,6 +36,11 @@ final class FolioUITests: XCTestCase {
         for _ in 0..<5 where !read.isHittable { app.swipeDown() }
         read.tap()
         XCTAssertTrue(app.webViews.firstMatch.waitForExistence(timeout: 90))
+        app.buttons["Reader appearance"].tap()
+        let size = app.sliders["Font size"]
+        XCTAssertTrue(size.waitForExistence(timeout: 10))
+        size.adjust(toNormalizedSliderPosition: 0.5)
+        app.buttons["appearance.done"].tap()
         let bookmark = app.buttons["Bookmark this position"]
         XCTAssertTrue(bookmark.waitForExistence(timeout: 20)); bookmark.tap()
         app.webViews.firstMatch.swipeLeft()
@@ -57,6 +62,8 @@ final class FolioUITests: XCTestCase {
         let delete = app.buttons["Delete download"]
         for _ in 0..<5 where !delete.isHittable { app.swipeUp() }
         XCTAssertTrue(delete.waitForExistence(timeout: 10)); delete.tap()
+        XCTAssertTrue(app.buttons["Delete file"].waitForExistence(timeout: 10))
+        app.buttons["Delete file"].tap()
         XCTAssertFalse(app.buttons["reader.open"].exists)
         // Persistence values are asserted by disk-reopen unit tests. A physical
         // device with airplane mode is still required by docs/ACCEPTANCE.md.

@@ -38,3 +38,14 @@ struct ReaderAppearance: View {
             .onChange(of: font) { changed() }.onChange(of: theme) { changed() }.onChange(of: scroll) { changed() }
     }
 }
+
+struct ReaderAppearanceSheet: View {
+    var changed: () -> Void
+    var close: () -> Void
+    var body: some View {
+        NavigationStack {
+            ReaderAppearance(changed: changed).navigationTitle("Reader appearance")
+                .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done", action: close).accessibilityIdentifier("appearance.done") } }
+        }
+    }
+}

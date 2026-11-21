@@ -52,7 +52,7 @@ enum LibraryFiles {
     }
     static func remove(_ record: LibraryBook) throws {
         if let url = record.fileURL, FileManager.default.fileExists(atPath: url.path) { try FileManager.default.removeItem(at: url) }
-        record.relativePath = nil; record.downloadState = "saved"
+        record.relativePath = nil; record.downloadState = "saved"; record.downloadError = nil; record.downloadToken = nil
     }
     static func usage() -> Int64 {
         let urls = (try? FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: [.fileSizeKey])) ?? []
@@ -60,6 +60,13 @@ enum LibraryFiles {
     }
 }
 @MainActor enum LibraryRepository {
+    static func remove(_ record: LibraryBook, context: ModelContext) throws {
+        DownloadManager.shared.cancel(record.id)
+        try LibraryFiles.remove(record)
+        let id = record.id
+        for annotation in try context.fetch(FetchDescriptor<Annotation>(predicate: #Predicate { $0.bookID == id })) { context.delete(annotation) }
+        context.delete(record); try context.save()
+    }
     static func save(_ book: Book, context: ModelContext) throws -> LibraryBook {
         let id = book.id
         let descriptor = FetchDescriptor<LibraryBook>(predicate: #Predicate { $0.id == id })
@@ -87,5 +94,17 @@ struct Streaks {
             cursor = earlier
         }
         return (current, longest)
+    }
+}
+
+@MainActor enum AnnotationRepository {
+    @discardableResult static func save(_ annotation: Annotation, context: ModelContext) throws -> Annotation {
+        let id = annotation.bookID, locator = annotation.locator, kind = annotation.kind
+        let matches = try context.fetch(FetchDescriptor<Annotation>(predicate: #Predicate { $0.bookID == id && $0.locator == locator && $0.kind == kind }))
+        if let existing = matches.first {
+            if !annotation.note.isEmpty { existing.note = annotation.note }
+            try context.save(); return existing
+        }
+        context.insert(annotation); try context.save(); return annotation
     }
 }

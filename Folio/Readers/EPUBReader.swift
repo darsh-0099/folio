@@ -51,7 +51,10 @@ struct EPUBReader: UIViewControllerRepresentable {
                 UIBarButtonItem(image: UIImage(systemName: "list.bullet"), style: .plain, target: self, action: #selector(contents))]
             navigationItem.rightBarButtonItems?.enumerated().forEach { index, item in item.accessibilityLabel = ["Reader appearance", "Bookmark this position", "Chapters, search and annotations"][index] }
             restoreHighlights()
-            clock = ReadingClock(context: context); clock?.start()
+            clock = ReadingClock(context: context, isReading: { [weak self] in
+                guard let self else { return false }
+                return self.viewIfLoaded?.window != nil && self.presentedViewController == nil && self.navigationController?.presentedViewController == nil
+            }); clock?.start()
         } catch { loading.stopAnimating(); showError(error) }
     }
     func navigator(_ navigator: Navigator, locationDidChange locator: Locator) {
@@ -83,8 +86,7 @@ struct EPUBReader: UIViewControllerRepresentable {
         navigator?.clearSelection(); restoreHighlights()
     }
     func persist(_ annotation: Annotation) {
-        context.insert(annotation)
-        do { try context.save() } catch { showError(error) }
+        do { _ = try AnnotationRepository.save(annotation, context: context) } catch { showError(error) }
     }
     func annotations() -> [Annotation] {
         let id = record.id
@@ -97,7 +99,7 @@ struct EPUBReader: UIViewControllerRepresentable {
         }, in: "highlights")
     }
     @objc func appearance() {
-        let controller = UIHostingController(rootView: ReaderAppearance { [weak self] in self?.navigator?.submitPreferences(ReaderSettings.preferences) })
+        let controller = UIHostingController(rootView: ReaderAppearanceSheet(changed: { [weak self] in self?.navigator?.submitPreferences(ReaderSettings.preferences) }, close: { [weak self] in self?.dismiss(animated: true) }))
         controller.modalPresentationStyle = .pageSheet
         controller.sheetPresentationController?.detents = [.medium(), .large()]
         present(controller, animated: true)
@@ -194,15 +196,15 @@ struct AnnotationList: View {
     var items: [Annotation]; var onSelect: (Annotation) -> Void; var onDelete: (Annotation) -> Void
     var onClose: () -> Void
     @State private var deleted = Set<UUID>()
-    @Environment(\.dismiss) private var dismiss
+    @State private var query = ""
     var body: some View {
         NavigationStack { List {
-            ForEach(items.filter { !deleted.contains($0.id) }) { item in
+            ForEach(items.filter { query.isEmpty || $0.text.localizedCaseInsensitiveContains(query) || $0.note.localizedCaseInsensitiveContains(query) }.filter { !deleted.contains($0.id) }) { item in
                 Button { onSelect(item) } label: {
                     VStack(alignment: .leading) { Text(item.text).lineLimit(4); if !item.note.isEmpty { Text(item.note).font(.caption).foregroundStyle(.secondary) } }
                 }.swipeActions { Button("Delete", role: .destructive) { onDelete(item); deleted.insert(item.id) } }
             }
             if items.isEmpty { Text("Save a bookmark or highlight to find it here.") }
-        }.navigationTitle("Annotations").toolbar { Button("Done") { onClose() } } }
+        }.navigationTitle("Annotations").searchable(text: $query, prompt: "Passage or note").toolbar { Button("Done") { onClose() } } }
     }
 }

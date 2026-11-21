@@ -3,6 +3,15 @@ import SwiftData
 import UIKit
 
 struct DownloadTicket: Codable { var bookID: String; var file: BookFile; var token: String = UUID().uuidString }
+struct DownloadReceipt: Codable {
+    var ticket: DownloadTicket
+    var filename: String
+    static func url(for file: URL) -> URL { file.appendingPathExtension("receipt") }
+    func incomingURL() -> URL? {
+        guard filename.hasPrefix("incoming-"), !filename.contains("/"), !filename.contains("\\"), !filename.contains("..") else { return nil }
+        return LibraryFiles.directory.appendingPathComponent(filename)
+    }
+}
 // URLSession invokes these methods on a serial delegate queue. Move temporary files
 // synchronously: their lifetime ends when didFinishDownloadingTo returns.
 final class DownloadDelegate: NSObject, URLSessionDownloadDelegate, @unchecked Sendable {
@@ -17,6 +26,10 @@ final class DownloadDelegate: NSObject, URLSessionDownloadDelegate, @unchecked S
             try LibraryFiles.prepare()
             let incoming = LibraryFiles.directory.appendingPathComponent("incoming-\(UUID().uuidString).\(ticket.file.format)")
             try FileManager.default.moveItem(at: location, to: incoming)
+            do {
+                let receipt = DownloadReceipt(ticket: ticket, filename: incoming.lastPathComponent)
+                try JSONEncoder().encode(receipt).write(to: DownloadReceipt.url(for: incoming), options: .atomic)
+            } catch { try? FileManager.default.removeItem(at: incoming); throw error }
             Task { @MainActor in await DownloadManager.shared.finish(ticket, incoming: incoming) }
         } catch { Task { @MainActor in DownloadManager.shared.failed(ticket, error: error) } }
     }
@@ -35,6 +48,8 @@ final class DownloadDelegate: NSObject, URLSessionDownloadDelegate, @unchecked S
     private var context: ModelContext?
     private let delegate = DownloadDelegate()
     private var pendingValidations = 0
+    private var validatingTokens = Set<String>()
+    private var recoveryDepth = 0
     private var finishedEvents = false
     var backgroundCompletion: (() -> Void)? { didSet { completeBackgroundIfReady() } }
     lazy var session: URLSession = {
@@ -61,6 +76,8 @@ final class DownloadDelegate: NSObject, URLSessionDownloadDelegate, @unchecked S
                 }
                 if record.relativePath != nil, !record.isDownloaded { record.relativePath = nil; record.downloadState = "failed" }
             }
+            // Receipts survive termination between transfer completion and validation.
+            await recoverReceipts()
             // Files interrupted during validation are not exposed as readable books.
             let incoming = (try? FileManager.default.contentsOfDirectory(at: LibraryFiles.directory, includingPropertiesForKeys: nil)) ?? []
             for url in incoming where url.lastPathComponent.hasPrefix("incoming-") {
@@ -104,17 +121,24 @@ final class DownloadDelegate: NSObject, URLSessionDownloadDelegate, @unchecked S
         try? context?.fetch(FetchDescriptor<LibraryBook>(predicate: #Predicate { $0.id == id })).first
     }
     func finish(_ ticket: DownloadTicket, incoming: URL) async {
+        guard validatingTokens.insert(ticket.token).inserted else { return }
         pendingValidations += 1
-        defer { pendingValidations -= 1; completeBackgroundIfReady() }
+        defer {
+            try? FileManager.default.removeItem(at: DownloadReceipt.url(for: incoming))
+            validatingTokens.remove(ticket.token); pendingValidations -= 1; completeBackgroundIfReady()
+        }
         do {
             try await ReaderEngine.shared.validate(incoming, file: ticket.file)
             guard let record = record(ticket.bookID), record.downloadToken == ticket.token, record.downloadState != "cancelled" else { try? FileManager.default.removeItem(at: incoming); return }
             let name = "\(UUID().uuidString).\(ticket.file.format)"
             let destination = LibraryFiles.directory.appendingPathComponent(name)
             try FileManager.default.moveItem(at: incoming, to: destination)
-            let old = record.fileURL
+            let old = record.fileURL, oldPath = record.relativePath
             record.relativePath = name; record.downloadState = "downloaded"; record.downloadError = nil
-            do { try context?.save() } catch { try? FileManager.default.removeItem(at: destination); throw error }
+            do { try context?.save() } catch {
+                record.relativePath = oldPath
+                try? FileManager.default.removeItem(at: destination); throw error
+            }
             if let old { try? FileManager.default.removeItem(at: old) }
             progress[ticket.bookID] = nil
         } catch {
@@ -134,9 +158,26 @@ final class DownloadDelegate: NSObject, URLSessionDownloadDelegate, @unchecked S
         progress[ticket.bookID] = nil
         if !cancelled { message = error.localizedDescription }; try? context?.save()
     }
-    func eventsFinished() { finishedEvents = true; completeBackgroundIfReady() }
+    private func recoverReceipts() async {
+        recoveryDepth += 1
+        defer { recoveryDepth -= 1; completeBackgroundIfReady() }
+        let urls = (try? FileManager.default.contentsOfDirectory(at: LibraryFiles.directory, includingPropertiesForKeys: nil)) ?? []
+        for url in urls where url.pathExtension == "receipt" {
+            guard let data = try? Data(contentsOf: url), let receipt = try? JSONDecoder().decode(DownloadReceipt.self, from: data), let incoming = receipt.incomingURL() else {
+                try? FileManager.default.removeItem(at: url); continue
+            }
+            await finish(receipt.ticket, incoming: incoming)
+        }
+    }
+    func eventsFinished() {
+        finishedEvents = true; recoveryDepth += 1
+        Task {
+            await recoverReceipts()
+            recoveryDepth -= 1; completeBackgroundIfReady()
+        }
+    }
     private func completeBackgroundIfReady() {
-        if finishedEvents && pendingValidations == 0, let completion = backgroundCompletion {
+        if finishedEvents && pendingValidations == 0 && recoveryDepth == 0, let completion = backgroundCompletion {
             finishedEvents = false; backgroundCompletion = nil; completion()
         }
     }

@@ -7,18 +7,20 @@ import SwiftUI
     @Published var query = ""
     @Published var field = "q"
     @Published var language = ""
+    @Published private(set) var hasMore = true
     private var generation = UUID()
-    private var page = 1
+    private var cursor = CatalogCursor()
     func load(more: Bool = false) async {
+        if more && (loading || !hasMore) { return }
         let token = UUID(); generation = token
-        if !more { page = 1 }
+        if !more { cursor = CatalogCursor(); books = []; messages = []; hasMore = true }
         loading = true
-        let (results, messages) = await CatalogService.shared.search(query, field: field, language: language, page: page)
+        defer { if token == generation { loading = false } }
+        let response = await CatalogService.shared.search(query.trimmingCharacters(in: .whitespacesAndNewlines), field: field, language: language, cursor: cursor)
         guard token == generation, !Task.isCancelled else { return }
-        self.messages = messages
-        books = Book.deduplicate((more ? books : []) + results)
-        if !results.isEmpty { page += 1 }
-        loading = false
+        messages = response.messages
+        books = Book.deduplicate(books + response.books)
+        cursor = response.next; hasMore = cursor.hasMore
     }
 }
 struct CatalogView: View {
@@ -36,7 +38,7 @@ struct CatalogView: View {
                         }.padding(.vertical)
                         ScrollView(.horizontal, showsIndicators: false) { HStack {
                             ForEach(categories, id: \.self) { category in
-                                Button(category) { model.query = category; Task { await model.load() } }
+                                Button(category) { model.query = category; model.field = "subject"; Task { await model.load() } }
                                     .buttonStyle(.bordered).tint(.accentColor)
                             }
                         } }
@@ -56,11 +58,13 @@ struct CatalogView: View {
                         ForEach(model.books) { book in NavigationLink(value: book) { BookCard(book: book) }.buttonStyle(.plain).accessibilityIdentifier("book.\(book.id)") }
                     }
                     if model.loading { ProgressView().frame(maxWidth: .infinity) }
-                    else if !model.books.isEmpty { Button("Load more") { Task { await model.load(more: true) } }.frame(maxWidth: .infinity) }
+                    else if !model.books.isEmpty && model.hasMore { Button("Load more") { Task { await model.load(more: true) } }.frame(maxWidth: .infinity) }
+                    if !model.books.isEmpty && !model.hasMore { Text("You’ve reached the end of these results.").font(.caption).foregroundStyle(.secondary) }
                     Text("Open Library · Internet Archive · Project Gutenberg\nPublic-domain status varies by country. Source records contain rights information.").font(.caption).foregroundStyle(.secondary)
                 }.padding(20)
             }
             .background(Color(.systemGroupedBackground))
+            .scrollDismissesKeyboard(.interactively)
             .navigationTitle(discover ? "Discover" : "Search")
             .searchable(text: $model.query, prompt: "Title, author or subject")
             .onSubmit(of: .search) { Task { await model.load() } }
@@ -91,7 +95,7 @@ struct BookCard: View {
             BookCover(book: book)
             Text(book.title).font(.headline).lineLimit(2)
             Text(book.author.isEmpty ? "Unknown author" : book.author).font(.subheadline).foregroundStyle(.secondary).lineLimit(2)
-            Text(book.files.isEmpty ? book.origin : "EPUB available").font(.caption).foregroundStyle(Color.accentColor)
+            Text(book.files.isEmpty ? book.origin : "\(Array(Set(book.files.map { $0.format.uppercased() })).sorted().joined(separator: " · ")) available").font(.caption).foregroundStyle(Color.accentColor)
         }.frame(maxWidth: .infinity, alignment: .leading).accessibilityElement(children: .combine)
     }
 }

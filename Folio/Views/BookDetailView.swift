@@ -6,6 +6,8 @@ struct BookDetailView: View {
     @State private var loading = false
     @State private var error: String?
     @State private var reader: LibraryBook?
+    @State private var confirmDelete = false
+    @State private var confirmRemove = false
     @Environment(\.modelContext) var context
     @Query private var records: [LibraryBook]
     @ObservedObject private var downloads = DownloadManager.shared
@@ -34,15 +36,9 @@ struct BookDetailView: View {
                 }
                 if let message = record?.downloadError { Text(message).foregroundStyle(.red).font(.callout) }
                 if let record {
-                    if record.isDownloaded { Button("Delete download", role: .destructive) { perform { try LibraryFiles.remove(record); try context.save() } } }
-                    Button("Remove from Library", role: .destructive) {
-                        perform {
-                            downloads.cancel(record.id); try LibraryFiles.remove(record)
-                            let id = record.id
-                            for annotation in try context.fetch(FetchDescriptor<Annotation>(predicate: #Predicate { $0.bookID == id })) { context.delete(annotation) }
-                            context.delete(record); try context.save()
-                        }
-                    }.disabled(record.downloadState == "downloading")
+                    if record.isDownloaded { Button("Delete download", role: .destructive) { confirmDelete = true } }
+                    Button("Remove from Library", role: .destructive) { confirmRemove = true }
+                        .disabled(record.downloadState == "downloading")
                 } else { Button("Add to Library", systemImage: "plus") { perform { _ = try LibraryRepository.save(book, context: context) } }.buttonStyle(.bordered) }
                 if loading { ProgressView("Checking edition metadata…") }
                 if let error { Text(error).foregroundStyle(.red); Button("Retry metadata") { Task { await enrich() } } }
@@ -66,13 +62,27 @@ struct BookDetailView: View {
                 if book.files.isEmpty && !loading { Text("No directly downloadable edition with confirmed rights was found. Use the source link for authorized access.").font(.callout).foregroundStyle(.secondary) }
             }.padding(24)
         }.navigationTitle("Book details").navigationBarTitleDisplayMode(.inline)
+            .confirmationDialog("Delete downloaded file?", isPresented: $confirmDelete, titleVisibility: .visible) {
+                Button("Delete file", role: .destructive) { if let record { perform { try LibraryFiles.remove(record); try context.save() } } }
+            } message: { Text("Your saved position, bookmarks and notes will remain in your library.") }
+            .confirmationDialog("Remove book from Library?", isPresented: $confirmRemove, titleVisibility: .visible) {
+                Button("Remove book", role: .destructive) { if let record { perform { try LibraryRepository.remove(record, context: context) } } }
+            } message: { Text("The download, bookmarks and notes for this edition will be removed.") }
             .task { await enrich() }
             .fullScreenCover(item: $reader) { ReaderDestination(record: $0) }
     }
     func perform(_ work: () throws -> Void) { do { try work() } catch { self.error = error.localizedDescription } }
     func enrich() async {
         loading = true; error = nil
-        do { book = try await CatalogService.shared.enrich(book) } catch { self.error = error.localizedDescription }
-        loading = false
+        defer { loading = false }
+        if record?.isDownloaded == true {
+            if let saved = record?.book { book = saved }
+            return
+        }
+        do {
+            if let saved = record?.book, !saved.summary.isEmpty { book = saved }
+            book = try await CatalogService.shared.enrich(book)
+            if let record { record.metadata = try JSONEncoder().encode(book); try context.save() }
+        } catch { self.error = error.localizedDescription }
     }
 }

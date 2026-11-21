@@ -25,6 +25,13 @@ jobs:
           xcodebuild -version
           xcodebuild -showsdks
           swift --version
+      - name: Cache resolved package sources
+        uses: actions/cache@v4
+        with:
+          path: |
+            build/device/SourcePackages
+            build/tests/SourcePackages
+          key: folio-spm-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('**/Package.resolved', 'project.yml') }}
       - name: Install project generator
         run: brew install xcodegen
       - name: Build and verify unsigned arm64 IPA
