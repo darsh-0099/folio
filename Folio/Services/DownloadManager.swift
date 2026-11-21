@@ -2,7 +2,7 @@ import Foundation
 import SwiftData
 import UIKit
 
-struct DownloadTicket: Codable { var bookID: String; var file: BookFile; var token: String = UUID().uuidString }
+struct DownloadTicket: Codable { var bookID: String; var file: BookFile; var token: String = UUID().uuidString; var mirrorAttempted: Bool? }
 struct DownloadReceipt: Codable {
     var ticket: DownloadTicket
     var filename: String
@@ -22,7 +22,12 @@ final class DownloadDelegate: NSObject, URLSessionDownloadDelegate, @unchecked S
     func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didFinishDownloadingTo location: URL) {
         guard let text = downloadTask.taskDescription, let data = text.data(using: .utf8), let ticket = try? JSONDecoder().decode(DownloadTicket.self, from: data) else { return }
         do {
-            guard let response = downloadTask.response as? HTTPURLResponse, (200...299).contains(response.statusCode), response.url?.scheme == "https" else { throw FolioError.message("The download server refused this file.") }
+            guard let response = downloadTask.response as? HTTPURLResponse else { throw FolioError.message("The download server returned an invalid response.") }
+            guard (200...299).contains(response.statusCode) else {
+                Task { @MainActor in DownloadManager.shared.handleHTTPFailure(ticket, status: response.statusCode) }
+                return
+            }
+            guard response.url?.scheme == "https" else { throw FolioError.message("The server redirected to an insecure download URL.") }
             try LibraryFiles.prepare()
             let incoming = LibraryFiles.directory.appendingPathComponent("incoming-\(UUID().uuidString).\(ticket.file.format)")
             try FileManager.default.moveItem(at: location, to: incoming)
@@ -101,12 +106,35 @@ final class DownloadDelegate: NSObject, URLSessionDownloadDelegate, @unchecked S
         let record = try LibraryRepository.save(book, context: context)
         guard !record.isDownloading else { return }
         let ticket = DownloadTicket(bookID: book.id, file: file)
-        var request = URLRequest(url: file.url)
-        request.setValue("Folio/1.1 (com.folio.reader)", forHTTPHeaderField: "User-Agent")
-        let task = session.downloadTask(with: request)
-        task.taskDescription = String(data: try JSONEncoder().encode(ticket), encoding: .utf8)
         record.downloadState = "downloading"; record.downloadError = nil; record.downloadToken = ticket.token; try context.save()
-        progress[book.id] = 0; task.resume()
+        progress[book.id] = 0
+        do { try enqueue(ticket, url: file.url) }
+        catch { failed(ticket, error: error); throw error }
+    }
+    private func enqueue(_ ticket: DownloadTicket, url: URL) throws {
+        var request = URLRequest(url: url)
+        request.setValue("Folio/1.1 (com.folio.reader)", forHTTPHeaderField: "User-Agent")
+        let description = String(data: try JSONEncoder().encode(ticket), encoding: .utf8)
+        let task = session.downloadTask(with: request); task.taskDescription = description; task.resume()
+    }
+    func handleHTTPFailure(_ ticket: DownloadTicket, status: Int) {
+        guard let record = record(ticket.bookID), record.downloadToken == ticket.token, record.downloadState != "cancelled" else { return }
+        guard record.book?.origin == "Project Gutenberg", ticket.file.format == "epub", ticket.mirrorAttempted != true,
+              let mirror = GutenbergMirror.url(for: ticket.file.url, status: status) else {
+            failed(ticket, error: FolioError.message(GutenbergMirror.errorMessage(status: status))); return
+        }
+        var retry = ticket; retry.mirrorAttempted = true; retry.token = UUID().uuidString
+        record.downloadToken = retry.token; record.downloadState = "retrying"; record.downloadError = nil
+        progress[ticket.bookID] = nil
+        do { try context?.save() } catch { failed(retry, error: error); return }
+        Task {
+            do {
+                try await Task.sleep(for: .seconds(1))
+                guard let current = self.record(retry.bookID), current.downloadToken == retry.token, current.downloadState == "retrying" else { return }
+                current.downloadState = "downloading"; try context?.save()
+                try enqueue(retry, url: mirror)
+            } catch { failed(retry, error: error) }
+        }
     }
     func cancel(_ id: String) {
         guard let record = record(id), let token = record.downloadToken else { return }

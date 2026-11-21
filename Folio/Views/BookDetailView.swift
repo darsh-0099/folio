@@ -24,7 +24,8 @@ struct BookDetailView: View {
                     ProgressView(value: record.progress) { Text("\(Int(record.progress * 100))% read") }
                 }
                 if record?.isDownloading == true {
-                    if record?.downloadState == "validating" { ProgressView("Checking book…") }
+                    if record?.downloadState == "retrying" { ProgressView("Trying Gutenberg distribution mirror…") }
+                    else if record?.downloadState == "validating" { ProgressView("Checking book…") }
                     else if let progress = downloads.progress[book.id], progress >= 0 {
                         ProgressView(value: min(1, progress)) { Text("Downloading \(Int(min(1, progress) * 100))%") }
                     } else { ProgressView("Downloading…") }

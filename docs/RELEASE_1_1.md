@@ -17,6 +17,10 @@
   and string representations. Canonicalize only known Creative Commons license URLs.
 - Merge repeated bookmarks, search annotations, add explicit appearance Done controls,
   and keep PDF content within safe areas. No library schema changes are required.
+- Handle primary Gutenberg maintenance through one HTTPS retry on its distribution
+  mirror for the same public-domain EPUB. Only 502/503/504 responses qualify; access
+  denials, missing files and rate limits never trigger mirror routing. HTTP errors
+  now include an actionable status message.
 - Add regression tests for time accounting, library behavior, access flags, pagination,
   receipts and PDF validation. The live reading test also adjusts font size.
 

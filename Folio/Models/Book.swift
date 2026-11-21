@@ -96,3 +96,26 @@ extension URL {
         return components.url ?? self
     }
 }
+
+/// Maintenance fallback for the same public-domain EPUB on PG's distribution host.
+/// Authentication errors, missing editions and other providers never use this route.
+enum GutenbergMirror {
+    static func url(for original: URL, status: Int) -> URL? {
+        guard [502, 503, 504].contains(status), original.scheme == "https",
+              ["www.gutenberg.org", "gutenberg.org"].contains(original.host?.lowercased() ?? ""),
+              original.query == nil, original.fragment == nil, original.user == nil, original.password == nil, original.port == nil else { return nil }
+        let name = original.lastPathComponent.components(separatedBy: ".")
+        guard name.count == 3, name[1] == "epub3", name[2] == "images", let id = Int(name[0]), id > 0,
+              original.path == "/ebooks/\(id).epub3.images" else { return nil }
+        return URL(string: "https://gutenberg.pglaf.org/cache/epub/\(id)/pg\(id)-images-3.epub")
+    }
+    static func errorMessage(status: Int) -> String {
+        switch status {
+        case 401, 403: return "Access denied (HTTP \(status)). View the source for authorized access."
+        case 404: return "This file is no longer available (HTTP 404). Choose another edition or view the source."
+        case 429: return "The source is busy (HTTP 429). Please wait before retrying."
+        case 500...599: return "The source is temporarily unavailable (HTTP \(status)). Please try again later."
+        default: return "The download server returned HTTP \(status). Please retry or view the source."
+        }
+    }
+}

@@ -47,6 +47,17 @@ final class SourceRegressionTests: XCTestCase {
         XCTAssertEqual(files.count, 1); XCTAssertEqual(files.first?.expectedBytes, 42)
         XCTAssertEqual(files.first?.rights, "https://creativecommons.org/publicdomain/zero/1.0/")
     }
+    func testMirrorFallbackIsLimitedToPublicGutenbergMaintenanceResponses() {
+        let original = URL(string: "https://www.gutenberg.org/ebooks/1342.epub3.images")!
+        XCTAssertEqual(GutenbergMirror.url(for: original, status: 503)?.absoluteString, "https://gutenberg.pglaf.org/cache/epub/1342/pg1342-images-3.epub")
+        for status in [200, 401, 403, 404, 429] { XCTAssertNil(GutenbergMirror.url(for: original, status: status)) }
+        XCTAssertNil(GutenbergMirror.url(for: URL(string: "https://archive.org/download/item/book.epub")!, status: 503))
+        XCTAssertNil(GutenbergMirror.url(for: URL(string: "https://www.gutenberg.org.evil.test/ebooks/1342.epub3.images")!, status: 503))
+    }
+    func testHTTPAvailabilityErrorsAreActionable() {
+        XCTAssertTrue(GutenbergMirror.errorMessage(status: 503).contains("temporarily unavailable"))
+        XCTAssertTrue(GutenbergMirror.errorMessage(status: 403).contains("authorized access"))
+    }
     func testSubjectUsesGutenbergTopicAndEscapesQuery() throws {
         let url = CatalogService.gutenbergURL("science & history", field: "subject", language: "en", page: 2)
         let query = try XCTUnwrap(URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems)
