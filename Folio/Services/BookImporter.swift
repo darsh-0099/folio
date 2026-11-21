@@ -67,8 +67,8 @@ enum FileImportStager {
             title = publication.metadata.title ?? title
             authors = publication.metadata.authors.map(\.name)
         } else if staged.format == "pdf", let pdf = PDFKit.PDFDocument(url: staged.url) {
-            title = (pdf.documentAttributes?[.titleAttribute] as? String).flatMap { $0.isEmpty ? nil : $0 } ?? title
-            if let author = pdf.documentAttributes?[.authorAttribute] as? String, !author.isEmpty { authors = [author] }
+            title = (pdf.documentAttributes?[PDFKit.PDFDocumentAttribute.titleAttribute.rawValue] as? String).flatMap { $0.isEmpty ? nil : $0 } ?? title
+            if let author = pdf.documentAttributes?[PDFKit.PDFDocumentAttribute.authorAttribute.rawValue] as? String, !author.isEmpty { authors = [author] }
         }
         if title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { title = "Untitled book" }
         let book = Book(id: id, title: title, authors: authors,
