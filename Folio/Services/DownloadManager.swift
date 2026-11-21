@@ -53,6 +53,7 @@ final class DownloadDelegate: NSObject, URLSessionDownloadDelegate, @unchecked S
     private var context: ModelContext?
     private let delegate = DownloadDelegate()
     private var pendingValidations = 0
+    private var pendingRetries = 0
     private var validatingTokens = Set<String>()
     private var recoveryDepth = 0
     private var finishedEvents = false
@@ -127,7 +128,9 @@ final class DownloadDelegate: NSObject, URLSessionDownloadDelegate, @unchecked S
         record.downloadToken = retry.token; record.downloadState = "retrying"; record.downloadError = nil
         progress[ticket.bookID] = nil
         do { try context?.save() } catch { failed(retry, error: error); return }
+        pendingRetries += 1
         Task {
+            defer { pendingRetries -= 1; completeBackgroundIfReady() }
             do {
                 try await Task.sleep(for: .seconds(1))
                 guard let current = self.record(retry.bookID), current.downloadToken == retry.token, current.downloadState == "retrying" else { return }
@@ -210,7 +213,7 @@ final class DownloadDelegate: NSObject, URLSessionDownloadDelegate, @unchecked S
         }
     }
     private func completeBackgroundIfReady() {
-        if finishedEvents && pendingValidations == 0 && recoveryDepth == 0, let completion = backgroundCompletion {
+        if finishedEvents && pendingValidations == 0 && pendingRetries == 0 && recoveryDepth == 0, let completion = backgroundCompletion {
             finishedEvents = false; backgroundCompletion = nil; completion()
         }
     }
