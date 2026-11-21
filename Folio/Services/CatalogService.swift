@@ -37,7 +37,7 @@ actor CatalogService {
         let delay = slot.timeIntervalSinceNow
         if delay > 0 { try await Task.sleep(for: .seconds(delay)) }
         var request = URLRequest(url: url)
-        request.setValue("Folio/1.0 (personal iOS ebook reader; com.folio.reader)", forHTTPHeaderField: "User-Agent")
+        request.setValue("Folio/1.1 (personal iOS ebook reader; com.folio.reader)", forHTTPHeaderField: "User-Agent")
         let (data, response) = try await session.data(for: request)
         guard let response = response as? HTTPURLResponse, (200...299).contains(response.statusCode) else {
             throw FolioError.message("The catalog is unavailable. Please try again later.")

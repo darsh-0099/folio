@@ -68,7 +68,7 @@ struct CatalogView: View {
             .navigationTitle(discover ? "Discover" : "Search")
             .searchable(text: $model.query, prompt: "Title, author or subject")
             .onSubmit(of: .search) { Task { await model.load() } }
-            .onChange(of: model.field) { Task { await model.load() } }
+            .onChange(of: model.field) { if !discover { Task { await model.load() } } }
             .onChange(of: model.language) { Task { await model.load() } }
             .navigationDestination(for: Book.self) { BookDetailView(book: $0) }
             .task { if model.books.isEmpty { await model.load() } }

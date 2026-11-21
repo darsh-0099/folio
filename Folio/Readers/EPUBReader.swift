@@ -26,7 +26,7 @@ struct EPUBReader: UIViewControllerRepresentable {
     override func viewDidLoad() {
         super.viewDidLoad(); view.backgroundColor = .systemBackground
         title = record.book?.title
-        let close = UIBarButtonItem(systemItem: .close, primaryAction: UIAction { [weak self] _ in self?.dismiss(animated: true) })
+        let close = UIBarButtonItem(systemItem: .close, primaryAction: UIAction { [weak self] _ in self?.clock?.stop(); self?.dismiss(animated: true) })
         close.accessibilityIdentifier = "reader.close"; close.accessibilityLabel = "Close book"
         navigationItem.leftBarButtonItem = close
         loading.center = view.center; loading.autoresizingMask = [.flexibleWidth, .flexibleHeight]; view.addSubview(loading); loading.startAnimating()
@@ -66,6 +66,9 @@ struct EPUBReader: UIViewControllerRepresentable {
     func navigator(_ navigator: Navigator, presentError error: NavigatorError) { showError(error) }
     func navigator(_ navigator: Navigator, didFailToLoadResourceAt href: RelativeURL, withError error: ReadError) { showError(error) }
     override func viewDidDisappear(_ animated: Bool) { super.viewDidDisappear(animated); if isBeingDismissed || navigationController?.isBeingDismissed == true { clock?.stop(); speech.stopSpeaking(at: .immediate) } }
+    func presentTool(_ controller: UIViewController, animated: Bool) {
+        clock?.pause(); present(controller, animated: animated)
+    }
     @objc func bookmark() {
         guard let location = navigator?.currentSelection?.locator ?? navigator?.currentLocation, let json = location.jsonString else { return }
         persist(Annotation(bookID: record.id, locator: json, text: location.text.highlight ?? location.title ?? "Reading position"))
@@ -78,7 +81,7 @@ struct EPUBReader: UIViewControllerRepresentable {
         alert.addTextField { $0.placeholder = "Your note" }
         alert.addAction(UIAlertAction(title: "Cancel", style: .cancel))
         alert.addAction(UIAlertAction(title: "Save", style: .default) { [weak self, weak alert] _ in self?.saveSelection(note: alert?.textFields?.first?.text ?? "") })
-        present(alert, animated: true)
+        presentTool(alert, animated: true)
     }
     func saveSelection(note: String) {
         guard let location = navigator?.currentSelection?.locator, let json = location.jsonString else { return }
@@ -102,7 +105,7 @@ struct EPUBReader: UIViewControllerRepresentable {
         let controller = UIHostingController(rootView: ReaderAppearanceSheet(changed: { [weak self] in self?.navigator?.submitPreferences(ReaderSettings.preferences) }, close: { [weak self] in self?.dismiss(animated: true) }))
         controller.modalPresentationStyle = .pageSheet
         controller.sheetPresentationController?.detents = [.medium(), .large()]
-        present(controller, animated: true)
+        presentTool(controller, animated: true)
     }
     @objc func contents() {
         let menu = UIAlertController(title: "Reading tools", message: nil, preferredStyle: .actionSheet)
@@ -111,7 +114,7 @@ struct EPUBReader: UIViewControllerRepresentable {
         menu.addAction(UIAlertAction(title: "Bookmarks, highlights and notes", style: .default) { [weak self] _ in self?.showAnnotations() })
         menu.addAction(UIAlertAction(title: "Speech controls (selected text)", style: .default) { [weak self] _ in self?.speechControls() })
         menu.addAction(UIAlertAction(title: "Mark finished", style: .default) { [weak self] _ in self?.record.completed = true; try? self?.context.save() })
-        menu.addAction(UIAlertAction(title: "Cancel", style: .cancel)); present(menu, animated: true)
+        menu.addAction(UIAlertAction(title: "Cancel", style: .cancel)); presentTool(menu, animated: true)
     }
     func chapters() {
         Task {
@@ -134,7 +137,7 @@ struct EPUBReader: UIViewControllerRepresentable {
         }, onDelete: { [weak self] item in
             self?.context.delete(item); try? self?.context.save(); self?.restoreHighlights()
         }, onClose: { [weak self] in self?.dismiss(animated: true) })
-        present(UIHostingController(rootView: list), animated: true)
+        presentTool(UIHostingController(rootView: list), animated: true)
     }
     func searchPrompt() {
         let alert = UIAlertController(title: "Search in book", message: nil, preferredStyle: .alert)
@@ -148,7 +151,7 @@ struct EPUBReader: UIViewControllerRepresentable {
                     await self.nextSearchPage()
                 } catch { self.showError(error) }
             }
-        }); present(alert, animated: true)
+        }); presentTool(alert, animated: true)
     }
     func nextSearchPage() async {
         do {
@@ -162,7 +165,7 @@ struct EPUBReader: UIViewControllerRepresentable {
     }
     func showList(title: String, labels: [String], select: @escaping (Int) -> Void) {
         let list = ReaderList(title: title, labels: labels, select: { [weak self] index in self?.dismiss(animated: true) { select(index) } })
-        present(UIHostingController(rootView: list), animated: true)
+        presentTool(UIHostingController(rootView: list), animated: true)
     }
     @objc func speakSelection() {
         guard let text = navigator?.currentSelection?.locator.text.highlight, !text.isEmpty else { return }
@@ -175,11 +178,11 @@ struct EPUBReader: UIViewControllerRepresentable {
         alert.addAction(UIAlertAction(title: "Pause", style: .default) { [weak self] _ in self?.speech.pauseSpeaking(at: .word) })
         alert.addAction(UIAlertAction(title: "Resume", style: .default) { [weak self] _ in self?.speech.continueSpeaking() })
         alert.addAction(UIAlertAction(title: "Stop", style: .destructive) { [weak self] _ in self?.speech.stopSpeaking(at: .immediate) })
-        alert.addAction(UIAlertAction(title: "Cancel", style: .cancel)); present(alert, animated: true)
+        alert.addAction(UIAlertAction(title: "Cancel", style: .cancel)); presentTool(alert, animated: true)
     }
     func showError(_ error: Error) {
         let alert = UIAlertController(title: "Unable to read", message: error.localizedDescription, preferredStyle: .alert)
-        alert.addAction(UIAlertAction(title: "OK", style: .default)); present(alert, animated: true)
+        alert.addAction(UIAlertAction(title: "OK", style: .default)); presentTool(alert, animated: true)
     }
 }
 struct ReaderList: View {
@@ -197,14 +200,17 @@ struct AnnotationList: View {
     var onClose: () -> Void
     @State private var deleted = Set<UUID>()
     @State private var query = ""
+    private var visible: [Annotation] {
+        items.filter { !deleted.contains($0.id) && (query.isEmpty || $0.text.localizedCaseInsensitiveContains(query) || $0.note.localizedCaseInsensitiveContains(query)) }
+    }
     var body: some View {
         NavigationStack { List {
-            ForEach(items.filter { query.isEmpty || $0.text.localizedCaseInsensitiveContains(query) || $0.note.localizedCaseInsensitiveContains(query) }.filter { !deleted.contains($0.id) }) { item in
+            ForEach(visible) { item in
                 Button { onSelect(item) } label: {
                     VStack(alignment: .leading) { Text(item.text).lineLimit(4); if !item.note.isEmpty { Text(item.note).font(.caption).foregroundStyle(.secondary) } }
                 }.swipeActions { Button("Delete", role: .destructive) { onDelete(item); deleted.insert(item.id) } }
             }
-            if items.isEmpty { Text("Save a bookmark or highlight to find it here.") }
+            if visible.isEmpty { Text(query.isEmpty ? "Save a bookmark or highlight to find it here." : "No passages or notes match your search.").foregroundStyle(.secondary) }
         }.navigationTitle("Annotations").searchable(text: $query, prompt: "Passage or note").toolbar { Button("Done") { onClose() } } }
     }
 }

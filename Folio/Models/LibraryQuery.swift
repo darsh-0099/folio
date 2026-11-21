@@ -25,6 +25,7 @@ struct LibraryQuery {
             case .recent:
                 let l = lhs.lastRead ?? .distantPast, r = rhs.lastRead ?? .distantPast
                 if l != r { return l > r }
+                if lhs.added != rhs.added { return lhs.added > rhs.added }
             case .added: if lhs.added != rhs.added { return lhs.added > rhs.added }
             case .title:
                 let comparison = (lhs.book?.title ?? "").localizedStandardCompare(rhs.book?.title ?? "")

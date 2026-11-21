@@ -23,7 +23,7 @@ struct PDFReader: UIViewControllerRepresentable {
         } else {
             let label = UILabel(frame: view.bounds); label.text = "The PDF is missing, locked or corrupt."; label.textAlignment = .center; view.addSubview(label)
         }
-        let close = UIBarButtonItem(systemItem: .close, primaryAction: UIAction { [weak self] _ in self?.dismiss(animated: true) })
+        let close = UIBarButtonItem(systemItem: .close, primaryAction: UIAction { [weak self] _ in self?.clock?.stop(); self?.dismiss(animated: true) })
         close.accessibilityIdentifier = "reader.close"; close.accessibilityLabel = "Close book"
         navigationItem.leftBarButtonItem = close
         navigationItem.rightBarButtonItems = [UIBarButtonItem(title: "Search", style: .plain, target: self, action: #selector(search)), UIBarButtonItem(title: "Page", style: .plain, target: self, action: #selector(pagePrompt))]
@@ -34,6 +34,9 @@ struct PDFReader: UIViewControllerRepresentable {
                 return self.viewIfLoaded?.window != nil && self.presentedViewController == nil && self.navigationController?.presentedViewController == nil
             }); clock?.start()
         }
+    }
+    func presentTool(_ controller: UIViewController, animated: Bool) {
+        clock?.pause(); present(controller, animated: animated)
     }
     @objc func pageChanged() {
         guard let document = pdfView.document, let page = pdfView.currentPage else { return }
@@ -47,7 +50,7 @@ struct PDFReader: UIViewControllerRepresentable {
         alert.addAction(UIAlertAction(title: "Go", style: .default) { [weak self, weak alert] _ in
             guard let self, let text = alert?.textFields?.first?.text, let number = Int(text), let page = self.pdfView.document?.page(at: number - 1) else { return }
             self.pdfView.go(to: page)
-        }); present(alert, animated: true)
+        }); presentTool(alert, animated: true)
     }
     @objc func search() {
         let alert = UIAlertController(title: "Search PDF", message: nil, preferredStyle: .alert); alert.addTextField()
@@ -58,8 +61,8 @@ struct PDFReader: UIViewControllerRepresentable {
             let list = ReaderList(title: "PDF matches", labels: matches.map { $0.string ?? "Match" }) { [weak self] index in
                 self?.dismiss(animated: true) { self?.pdfView.setCurrentSelection(matches[index], animate: true); self?.pdfView.go(to: matches[index]) }
             }
-            self.present(UIHostingController(rootView: list), animated: true)
-        }); present(alert, animated: true)
+            self.presentTool(UIHostingController(rootView: list), animated: true)
+        }); presentTool(alert, animated: true)
     }
     override func viewDidDisappear(_ animated: Bool) { super.viewDidDisappear(animated); if navigationController?.isBeingDismissed == true { clock?.stop() } }
     deinit { NotificationCenter.default.removeObserver(self) }

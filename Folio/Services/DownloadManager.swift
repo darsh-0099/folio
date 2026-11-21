@@ -102,7 +102,7 @@ final class DownloadDelegate: NSObject, URLSessionDownloadDelegate, @unchecked S
         guard record.downloadState != "downloading" else { return }
         let ticket = DownloadTicket(bookID: book.id, file: file)
         var request = URLRequest(url: file.url)
-        request.setValue("Folio/1.0 (com.folio.reader)", forHTTPHeaderField: "User-Agent")
+        request.setValue("Folio/1.1 (com.folio.reader)", forHTTPHeaderField: "User-Agent")
         let task = session.downloadTask(with: request)
         task.taskDescription = String(data: try JSONEncoder().encode(ticket), encoding: .utf8)
         record.downloadState = "downloading"; record.downloadError = nil; record.downloadToken = ticket.token; try context.save()
@@ -121,11 +121,15 @@ final class DownloadDelegate: NSObject, URLSessionDownloadDelegate, @unchecked S
         try? context?.fetch(FetchDescriptor<LibraryBook>(predicate: #Predicate { $0.id == id })).first
     }
     func finish(_ ticket: DownloadTicket, incoming: URL) async {
+        guard context != nil else { return } // Keep the receipt until persistence is ready.
         guard validatingTokens.insert(ticket.token).inserted else { return }
         pendingValidations += 1
         defer {
             try? FileManager.default.removeItem(at: DownloadReceipt.url(for: incoming))
             validatingTokens.remove(ticket.token); pendingValidations -= 1; completeBackgroundIfReady()
+        }
+        guard let initial = record(ticket.bookID), initial.downloadToken == ticket.token, initial.downloadState != "cancelled" else {
+            try? FileManager.default.removeItem(at: incoming); return
         }
         do {
             try await ReaderEngine.shared.validate(incoming, file: ticket.file)

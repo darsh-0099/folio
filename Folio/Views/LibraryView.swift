@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import Charts
 
 struct LibraryView: View {
     @Query(sort: \LibraryBook.added, order: .reverse) private var records: [LibraryBook]
@@ -97,6 +98,14 @@ struct ActivityView: View {
     @AppStorage("dailyGoal") var goal = 20
     var todaySeconds: Double { days.first { Calendar.current.isDateInToday($0.day) }?.seconds ?? 0 }
     var streak: (current: Int, longest: Int) { Streaks.calculate(days: days.filter { $0.seconds >= 60 }.map(\.day)) }
+    private var week: [(day: Date, minutes: Double)] {
+        let calendar = Calendar.current, today = Calendar.current.startOfDay(for: Date())
+        return (-6...0).compactMap { offset in
+            guard let day = calendar.date(byAdding: .day, value: offset, to: today) else { return nil }
+            let seconds = days.filter { calendar.isDate($0.day, inSameDayAs: day) }.reduce(0) { $0 + $1.seconds }
+            return (day, seconds / 60)
+        }
+    }
     var body: some View {
         NavigationStack {
             List {
@@ -105,6 +114,20 @@ struct ActivityView: View {
                     LabeledContent("Reading time", value: "\(Int(todaySeconds / 60)) minutes")
                     ProgressView(value: min(todaySeconds / (Double(goal) * 60), 1)) { Text("Daily goal: \(goal) minutes") }
                     Stepper("Goal: \(goal) minutes", value: $goal, in: 5...180, step: 5)
+                }
+                Section("This week") {
+                    Chart {
+                        ForEach(week, id: \.day) { point in
+                            BarMark(x: .value("Day", point.day, unit: .day), y: .value("Minutes", point.minutes))
+                                .foregroundStyle(Color.accentColor)
+                                .accessibilityLabel(point.day.formatted(.dateTime.weekday(.wide)))
+                                .accessibilityValue("\(Int(point.minutes)) minutes")
+                        }
+                        RuleMark(y: .value("Daily goal", Double(goal))).foregroundStyle(.secondary)
+                            .lineStyle(StrokeStyle(lineWidth: 1, dash: [4]))
+                    }.frame(height: 170)
+                        .chartXAxis { AxisMarks(values: .stride(by: .day)) { _ in AxisValueLabel(format: .dateTime.weekday(.narrow)) } }
+                    Text("Minutes read · dashed line shows your daily goal").font(.caption).foregroundStyle(.secondary)
                 }
                 Section("Your reading life") {
                     LabeledContent("Current streak", value: "\(streak.current) days")

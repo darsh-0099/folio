@@ -71,6 +71,7 @@ struct ReadingSession {
         if session.previous == nil { session.resume(at: Date()) }
         persist(session.sample(at: Date()))
     }
+    func pause() { persist(session.pause(at: Date())) }
     func stop() {
         if UIApplication.shared.applicationState == .active, isReading() { persist(session.pause(at: Date())) }
         else { session.discardAndPause() }
