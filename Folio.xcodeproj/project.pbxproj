@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		0A2B102E23FBE764C7EB2C50 /* ReaderSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A2D044DEA1768DE03A79464 /* ReaderSettings.swift */; };
 		0AC59EC84302EFBF88B80706 /* CatalogView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4D46697527A49B35C7806C0B /* CatalogView.swift */; };
+		0DA2C909E6710A84837AAC7F /* RegressionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1B3D4CC1331BC610AFE314FE /* RegressionTests.swift */; };
 		262F73093B1C8E9406AF514E /* ReadiumAdapterGCDWebServer in Frameworks */ = {isa = PBXBuildFile; productRef = E3497497357CFC386E10B22B /* ReadiumAdapterGCDWebServer */; };
 		4E3D108373DC8902468B68A9 /* Book.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4EAFC860D7CC6DE92E413E5A /* Book.swift */; };
 		5D66D20231FB94CF147E9066 /* ReadiumShared in Frameworks */ = {isa = PBXBuildFile; productRef = 28E04A1FA20F6176F1634321 /* ReadiumShared */; };
@@ -24,6 +25,7 @@
 		BEA8E02A46B0BF0EC1E86C6B /* BookDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20F04ABAA84BC521F3EE4896 /* BookDetailView.swift */; };
 		BF27DEBBFA7A13E28B3B759B /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 54D4008A50CAB7A791191F9F /* Assets.xcassets */; };
 		D4C80F3D96A18089DF4D111E /* ReaderEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2550D48938B12C75DDDCC4FE /* ReaderEngine.swift */; };
+		D80B1198D79D123E2F469A18 /* LibraryQuery.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1B66CD68E875233E1183A9C6 /* LibraryQuery.swift */; };
 		EA45AB5F1D8D9B519B7A6C9C /* FolioTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0D73FF8468112C40CEC30982 /* FolioTests.swift */; };
 		F9F6D534620553BB1E2C48AC /* EPUBReader.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE40465A27F9D4D694059E63 /* EPUBReader.swift */; };
 		FE322F2D3243AD37CF9C2840 /* CatalogService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5F1903D2015BC37BC70B74B8 /* CatalogService.swift */; };
@@ -50,6 +52,8 @@
 		0D73FF8468112C40CEC30982 /* FolioTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FolioTests.swift; sourceTree = "<group>"; };
 		1501E57849992875A0357D54 /* DownloadManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DownloadManager.swift; sourceTree = "<group>"; };
 		15BF330ECB4CC7BB5435AE8E /* LibraryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryView.swift; sourceTree = "<group>"; };
+		1B3D4CC1331BC610AFE314FE /* RegressionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RegressionTests.swift; sourceTree = "<group>"; };
+		1B66CD68E875233E1183A9C6 /* LibraryQuery.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryQuery.swift; sourceTree = "<group>"; };
 		20F04ABAA84BC521F3EE4896 /* BookDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookDetailView.swift; sourceTree = "<group>"; };
 		2550D48938B12C75DDDCC4FE /* ReaderEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReaderEngine.swift; sourceTree = "<group>"; };
 		2A916DE31B205B2EFBDC9B82 /* FolioUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FolioUITests.swift; sourceTree = "<group>"; };
@@ -97,6 +101,7 @@
 			isa = PBXGroup;
 			children = (
 				4EAFC860D7CC6DE92E413E5A /* Book.swift */,
+				1B66CD68E875233E1183A9C6 /* LibraryQuery.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -105,6 +110,7 @@
 			isa = PBXGroup;
 			children = (
 				0D73FF8468112C40CEC30982 /* FolioTests.swift */,
+				1B3D4CC1331BC610AFE314FE /* RegressionTests.swift */,
 			);
 			path = FolioTests;
 			sourceTree = "<group>";
@@ -249,7 +255,7 @@
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = YES;
-				LastUpgradeCheck = 1430;
+				LastUpgradeCheck = 1600;
 				TargetAttributes = {
 					E9A949E9A6596932E120989F = {
 						TestTargetID = 0C56AF64BE26DB444D566E60;
@@ -297,6 +303,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				EA45AB5F1D8D9B519B7A6C9C /* FolioTests.swift in Sources */,
+				0DA2C909E6710A84837AAC7F /* RegressionTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -311,6 +318,7 @@
 				8FE96BE825F894D70AB8E463 /* DownloadManager.swift in Sources */,
 				F9F6D534620553BB1E2C48AC /* EPUBReader.swift in Sources */,
 				7A67B6146C9F761D81CCCBF0 /* FolioApp.swift in Sources */,
+				D80B1198D79D123E2F469A18 /* LibraryQuery.swift in Sources */,
 				76383DB0133747984395A453 /* LibraryStore.swift in Sources */,
 				9E4FD77607201BADBA2E6329 /* LibraryView.swift in Sources */,
 				990BF7258642F258A6E8FA8B /* PDFReader.swift in Sources */,
@@ -366,7 +374,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = Folio;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -376,7 +384,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 1.1;
 				PRODUCT_BUNDLE_IDENTIFIER = com.folio.reader;
 				SDKROOT = iphoneos;
 				SUPPORTS_MACCATALYST = NO;
@@ -505,7 +513,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = Folio;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -515,7 +523,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 1.1;
 				PRODUCT_BUNDLE_IDENTIFIER = com.folio.reader;
 				SDKROOT = iphoneos;
 				SUPPORTS_MACCATALYST = NO;
