@@ -19,6 +19,7 @@ import SwiftData
     }
     var book: Book? { try? JSONDecoder().decode(Book.self, from: metadata) }
     var fileURL: URL? { relativePath.map { LibraryFiles.directory.appendingPathComponent($0) } }
+    var isDownloading: Bool { downloadState == "downloading" || downloadState == "validating" }
     var isDownloaded: Bool { fileURL.map { FileManager.default.fileExists(atPath: $0.path) } ?? false }
 }
 @Model final class Annotation {

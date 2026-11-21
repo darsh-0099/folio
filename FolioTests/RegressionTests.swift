@@ -92,9 +92,10 @@ final class SourceRegressionTests: XCTestCase {
     }
     func testDeletingDownloadClearsTransferStateButPreservesPosition() throws {
         let record = try LibraryBook(book: Book(id: "a", title: "Book", authors: [], source: URL(string: "https://example.com")!, origin: "test"))
+        record.downloadState = "validating"; XCTAssertTrue(record.isDownloading)
         record.downloadToken = "stale"; record.downloadError = "Failure"; record.locator = "position"; record.progress = 0.4
         try LibraryFiles.remove(record)
-        XCTAssertNil(record.downloadToken); XCTAssertNil(record.downloadError)
+        XCTAssertNil(record.downloadToken); XCTAssertNil(record.downloadError); XCTAssertFalse(record.isDownloading)
         XCTAssertEqual(record.locator, "position"); XCTAssertEqual(record.progress, 0.4)
     }
 }

@@ -23,8 +23,11 @@ struct BookDetailView: View {
                     Button(record.locator != nil || record.pdfPage > 0 ? "Continue Reading" : "Read") { reader = record }.buttonStyle(.borderedProminent).controlSize(.large).accessibilityIdentifier("reader.open")
                     ProgressView(value: record.progress) { Text("\(Int(record.progress * 100))% read") }
                 }
-                if record?.downloadState == "downloading" {
-                    ProgressView(value: downloads.progress[book.id] ?? 0) { Text("Downloading…") }
+                if record?.isDownloading == true {
+                    if record?.downloadState == "validating" { ProgressView("Checking book…") }
+                    else if let progress = downloads.progress[book.id], progress >= 0 {
+                        ProgressView(value: min(1, progress)) { Text("Downloading \(Int(min(1, progress) * 100))%") }
+                    } else { ProgressView("Downloading…") }
                     Button("Cancel download", role: .destructive) { downloads.cancel(book.id) }
                 } else if record?.isDownloaded != true {
                     ForEach(book.files) { file in
@@ -38,7 +41,7 @@ struct BookDetailView: View {
                 if let record {
                     if record.isDownloaded { Button("Delete download", role: .destructive) { confirmDelete = true } }
                     Button("Remove from Library", role: .destructive) { confirmRemove = true }
-                        .disabled(record.downloadState == "downloading")
+                        .disabled(record.isDownloading)
                 } else { Button("Add to Library", systemImage: "plus") { perform { _ = try LibraryRepository.save(book, context: context) } }.buttonStyle(.bordered) }
                 if loading { ProgressView("Checking edition metadata…") }
                 if let error { Text(error).foregroundStyle(.red); Button("Retry metadata") { Task { await enrich() } } }

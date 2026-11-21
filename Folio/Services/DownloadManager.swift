@@ -17,7 +17,7 @@ struct DownloadReceipt: Codable {
 final class DownloadDelegate: NSObject, URLSessionDownloadDelegate, @unchecked Sendable {
     func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didWriteData bytesWritten: Int64, totalBytesWritten: Int64, totalBytesExpectedToWrite: Int64) {
         guard let description = downloadTask.taskDescription, let ticket = description.data(using: .utf8).flatMap({ try? JSONDecoder().decode(DownloadTicket.self, from: $0) }) else { return }
-        Task { @MainActor in DownloadManager.shared.reportProgress(ticket, value: totalBytesExpectedToWrite > 0 ? Double(totalBytesWritten) / Double(totalBytesExpectedToWrite) : 0) }
+        Task { @MainActor in DownloadManager.shared.reportProgress(ticket, value: totalBytesExpectedToWrite > 0 ? Double(totalBytesWritten) / Double(totalBytesExpectedToWrite) : -1) }
     }
     func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didFinishDownloadingTo location: URL) {
         guard let text = downloadTask.taskDescription, let data = text.data(using: .utf8), let ticket = try? JSONDecoder().decode(DownloadTicket.self, from: data) else { return }
@@ -71,7 +71,7 @@ final class DownloadDelegate: NSObject, URLSessionDownloadDelegate, @unchecked S
             let tasks = await session.allTasks
             let active = Set(tasks.compactMap { task in task.taskDescription?.data(using: .utf8).flatMap { try? JSONDecoder().decode(DownloadTicket.self, from: $0).bookID } })
             for record in (try? context.fetch(FetchDescriptor<LibraryBook>())) ?? [] {
-                if record.downloadState == "downloading", !active.contains(record.id) {
+                if record.isDownloading, !active.contains(record.id) {
                     record.downloadState = "failed"; record.downloadError = "Interrupted download. Open details to retry."
                 }
                 if record.relativePath != nil, !record.isDownloaded { record.relativePath = nil; record.downloadState = "failed" }
@@ -99,7 +99,7 @@ final class DownloadDelegate: NSObject, URLSessionDownloadDelegate, @unchecked S
         // Filesystem write errors still report actual disk-full failures.
         if capacity > 0, capacity < max(expected * 2, 100_000_000) { throw FolioError.message("Free some device storage before downloading.") }
         let record = try LibraryRepository.save(book, context: context)
-        guard record.downloadState != "downloading" else { return }
+        guard !record.isDownloading else { return }
         let ticket = DownloadTicket(bookID: book.id, file: file)
         var request = URLRequest(url: file.url)
         request.setValue("Folio/1.1 (com.folio.reader)", forHTTPHeaderField: "User-Agent")
@@ -132,6 +132,7 @@ final class DownloadDelegate: NSObject, URLSessionDownloadDelegate, @unchecked S
             try? FileManager.default.removeItem(at: incoming); return
         }
         do {
+            initial.downloadState = "validating"; try context?.save()
             try await ReaderEngine.shared.validate(incoming, file: ticket.file)
             guard let record = record(ticket.bookID), record.downloadToken == ticket.token, record.downloadState != "cancelled" else { try? FileManager.default.removeItem(at: incoming); return }
             let name = "\(UUID().uuidString).\(ticket.file.format)"
