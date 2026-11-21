@@ -66,6 +66,11 @@ final class SourceRegressionTests: XCTestCase {
         XCTAssertEqual(query.first { $0.name == "languages" }?.value, "en")
         XCTAssertNil(query.first { $0.name == "search" })
     }
+    func testFirstPageSearchUsesCanonicalDefaultQuery() throws {
+        let url = CatalogService.gutenbergURL("Pride and Prejudice", field: "q", language: "", page: 1)
+        let query = try XCTUnwrap(URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems)
+        XCTAssertEqual(query, [URLQueryItem(name: "search", value: "pride and prejudice")])
+    }
     func testRepeatedMetadataDoesNotDuplicateFiles() {
         let file = BookFile(url: URL(string: "https://example.com/book.epub")!, format: "epub", rights: "CC0")
         XCTAssertEqual(BookFile.deduplicate([file, file, file]).count, 1)
@@ -159,6 +164,12 @@ final class CatalogPaginationTests: XCTestCase {
         CatalogStubProtocol.set(["gutendex.com": (200, #"{"next":null,"results":[]}"#), "openlibrary.org": (200, #"{"numFound":0,"docs":[]}"#)])
         let result = await service().search("test")
         XCTAssertFalse(result.next.hasMore); XCTAssertTrue(result.messages.isEmpty)
+    }
+    func testUnfilteredCatalogStillRejectsUnconfirmedCopyright() async {
+        let json = #"{"next":null,"results":[{"id":1,"title":"Public","authors":[],"languages":["en"],"subjects":[],"formats":{},"copyright":false},{"id":2,"title":"Restricted","authors":[],"languages":["en"],"subjects":[],"formats":{},"copyright":true},{"id":3,"title":"Unknown","authors":[],"languages":["en"],"subjects":[],"formats":{}}]}"#
+        CatalogStubProtocol.set(["gutendex.com": (200, json), "openlibrary.org": (200, #"{"numFound":0,"docs":[]}"#)])
+        let result = await service().search("test")
+        XCTAssertEqual(result.books.map(\.id), ["gutenberg:1"])
     }
     func testFailedSourceKeepsItsCursorForRetry() async {
         CatalogStubProtocol.set(["gutendex.com": (200, #"{"next":null,"results":[]}"#), "openlibrary.org": (503, "{}")])

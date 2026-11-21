@@ -57,7 +57,10 @@ actor CatalogService {
     }
     nonisolated static func gutenbergURL(_ query: String, field: String, language: String, page: Int) -> URL {
         var c = URLComponents(string: "https://gutendex.com/books/")!
-        c.queryItems = [.init(name: field == "subject" ? "topic" : "search", value: query), .init(name: "page", value: String(page)), .init(name: "copyright", value: "false")]
+        // Gutendex search is case-insensitive. Use one canonical URL and its
+        // default first page; enforce the copyright declaration on decoded books.
+        c.queryItems = [.init(name: field == "subject" ? "topic" : "search", value: query.lowercased())]
+        if page > 1 { c.queryItems?.append(.init(name: "page", value: String(page))) }
         if !language.isEmpty { c.queryItems?.append(.init(name: "languages", value: language)) }
         return c.url!
     }
@@ -70,7 +73,7 @@ actor CatalogService {
         guard let page else { return SourcePage() }
         do {
             let response: GutenbergPage = try await get(Self.gutenbergURL(query, field: field, language: language, page: page))
-            return SourcePage(books: response.results.map(\.book), next: response.next == nil ? nil : page + 1)
+            return SourcePage(books: response.results.filter { $0.copyright == false }.map(\.book), next: response.next == nil ? nil : page + 1)
         } catch { return SourcePage(next: page, error: "Project Gutenberg: \(error.localizedDescription)") }
     }
     private func openLibrarySearch(_ query: String, field: String, language: String, page: Int?) async -> SourcePage {

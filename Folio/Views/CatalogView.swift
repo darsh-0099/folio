@@ -50,6 +50,10 @@ struct CatalogView: View {
                         }.pickerStyle(.menu)
                     }
                     ForEach(model.messages, id: \.self) { Text($0).font(.callout).foregroundStyle(.secondary) }
+                    if !model.messages.isEmpty && !model.loading && !model.books.isEmpty {
+                        Button("Retry unavailable catalogs") { Task { await model.load() } }
+                            .accessibilityIdentifier("catalog.retry")
+                    }
                     if model.books.isEmpty && !model.loading {
                         ContentUnavailableView("No books found", systemImage: "books.vertical", description: Text("Try another search or check your connection."))
                         Button("Retry") { Task { await model.load() } }

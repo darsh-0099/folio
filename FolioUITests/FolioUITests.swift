@@ -22,7 +22,16 @@ final class FolioUITests: XCTestCase {
         XCTAssertTrue(search.waitForExistence(timeout: 20))
         search.tap(); search.typeText("Pride and Prejudice\n")
         let book = app.descendants(matching: .any).matching(identifier: "book.gutenberg:1342").firstMatch
-        XCTAssertTrue(book.waitForExistence(timeout: 90)); book.tap()
+        if !book.waitForExistence(timeout: 45) {
+            let retry = app.buttons["catalog.retry"]
+            if retry.exists && retry.isHittable { retry.tap() }
+        }
+        let found = book.waitForExistence(timeout: 45)
+        if !found {
+            print("FOLIO CATALOG DIAGNOSTIC: " + app.debugDescription)
+            let capture = XCTAttachment(screenshot: app.screenshot()); capture.lifetime = .keepAlways; add(capture)
+        }
+        XCTAssertTrue(found, "Live Gutenberg search did not return #1342; see catalog diagnostic"); book.tap()
         let download = app.buttons["download.epub"].firstMatch
         for _ in 0..<5 where !download.isHittable { app.swipeUp() }
         if download.exists { download.tap() }
