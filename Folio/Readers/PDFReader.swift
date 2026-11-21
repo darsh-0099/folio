@@ -48,6 +48,9 @@ struct PDFReader: UIViewControllerRepresentable {
         clock?.pause(); present(controller, animated: animated)
     }
     @objc func pageChanged() {
+        // Initial PDFKit layout can report page one before viewDidAppear restores
+        // the saved page. Do not overwrite the persistent position during layout.
+        guard !needsRestore else { return }
         guard let document = pdfView.document, let page = pdfView.currentPage else { return }
         record.pdfPage = document.index(for: page)
         navigationItem.prompt = "Page \(record.pdfPage + 1) of \(document.pageCount)"

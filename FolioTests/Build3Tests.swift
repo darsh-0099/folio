@@ -26,13 +26,27 @@ final class PDFPageNavigationTests: XCTestCase {
     private func container() throws -> ModelContainer {
         try ModelContainer(for: LibraryBook.self, Annotation.self, ReadingDay.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
     }
-    private func pdf() throws -> URL {
+    private func pdf(pages: Int = 1) throws -> URL {
         let url = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".pdf")
         let renderer = UIGraphicsPDFRenderer(bounds: CGRect(x: 0, y: 0, width: 320, height: 480), format: {
             let format = UIGraphicsPDFRendererFormat(); format.documentInfo = [kCGPDFContextTitle as String: "Imported test PDF", kCGPDFContextAuthor as String: "Folio tests"]; return format
         }())
-        try renderer.writePDF(to: url) { context in context.beginPage(); ("A local document" as NSString).draw(at: CGPoint(x: 20, y: 20), withAttributes: nil) }
+        try renderer.writePDF(to: url) { context in
+            for _ in 0..<pages { context.beginPage(); ("A local document" as NSString).draw(at: CGPoint(x: 20, y: 20), withAttributes: nil) }
+        }
         return url
+    }
+    func testPDFInitialLayoutCannotOverwriteSavedResumePage() async throws {
+        let source = try pdf(pages: 4); defer { try? FileManager.default.removeItem(at: source) }
+        let store = try container(), context = ModelContext(store)
+        let record = try await BookImporter.importBook(at: source, context: context)
+        defer { try? LibraryFiles.remove(record) }
+        record.pdfPage = 2; record.progress = 0.75; try context.save()
+        let controller = PDFController(record: record, context: context)
+        controller.loadViewIfNeeded(); defer { controller.clock?.stop() }
+        controller.pdfView.goToFirstPage(nil)
+        controller.pageChanged() // PDFKit's initial layout event, before appearance.
+        XCTAssertEqual(record.pdfPage, 2); XCTAssertEqual(record.progress, 0.75)
     }
     func testPDFImportCreatesARealOfflineRecordWithMetadata() async throws {
         let source = try pdf(); defer { try? FileManager.default.removeItem(at: source) }
